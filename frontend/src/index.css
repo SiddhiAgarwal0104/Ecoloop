@@ -1,0 +1,65 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: "Segoe UI", Roboto, Arial, sans-serif;
+}
+
+body {
+  background: #f4faf6;
+  color: #1f2937;
+  line-height: 1.6;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: #e8f5e9;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #81c784;
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #66bb6a;
+}
+
+/* Custom utility classes matching the theme */
+@layer components {
+  .navbar {
+    @apply flex justify-between items-center px-10 py-4 bg-primary-100 border-b-2 border-primary-200;
+  }
+
+  .card {
+    @apply bg-white p-6 rounded-2xl shadow-lg hover:shadow-xl transition-shadow;
+  }
+
+  .btn-primary {
+    @apply bg-eco-main text-white px-6 py-3 rounded-xl font-semibold hover:bg-eco-dark transition-colors cursor-pointer;
+  }
+
+  .btn-secondary {
+    @apply bg-white text-eco-main border-2 border-eco-main px-6 py-3 rounded-xl font-semibold hover:bg-primary-50 transition-colors cursor-pointer;
+  }
+
+  .input-field {
+    @apply w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-eco-main focus:border-transparent;
+  }
+
+  .section-title {
+    @apply text-2xl font-bold text-eco-dark mb-2;
+  }
+
+  .subtitle {
+    @apply text-gray-600 mb-6;
+  }
+}
