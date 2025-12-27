@@ -1,0 +1,99 @@
+:root{
+  --eco-green: #1fa45f;
+  --eco-dark: #0f6b3a;
+  --muted: #6b6b6b;
+  --card-bg: #ffffff;
+  --page-bg: #f5faf4;
+}
+
+*{box-sizing:border-box;font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial}
+
+body{margin:0;background:var(--page-bg);color:#123;}
+
+.container{max-width:1100px;margin:32px auto;padding:0 16px;}
+
+.card{
+  background:var(--card-bg);
+  border-radius:12px;
+  box-shadow:0 6px 18px rgba(17, 24, 39, 0.06);
+  padding:20px;
+}
+
+.header-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+
+.input{
+  width:100%;padding:10px 12px;border-radius:8px;border:1px solid #e6e6e6;background:#fff;font-size:14px
+}
+
+.label{font-size:13px;color:var(--muted);margin-bottom:6px;display:block}
+
+.btn-primary{
+  background:linear-gradient(180deg,var(--eco-green),var(--eco-dark));
+  color:white;border:none;padding:10px 14px;border-radius:10px;font-weight:600;cursor:pointer
+}
+
+.btn-ghost{background:transparent;border:1px solid #e6e6e6;padding:8px 12px;border-radius:8px;cursor:pointer}
+
+.form-row{margin-bottom:14px}
+
+.center{display:flex;align-items:center;justify-content:center}
+
+.progress{display:flex;gap:8px;margin-bottom:14px}
+.progress .step{flex:1;height:8px;border-radius:6px;background:#ebf6ee}
+.progress .step.active{background:linear-gradient(90deg,var(--eco-green),#8fd4a7)}
+
+.small-muted{font-size:13px;color:var(--muted)}
+
+.card-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px}
+
+.error{color:#a94442;background:#f7e5e5;padding:8px;border-radius:8px;margin-bottom:12px}
+.form-error{color:#a94442;background:#fff6f6;border:1px solid #f0dede;padding:10px;border-radius:8px;margin-bottom:12px}
+
+.link{color:var(--eco-dark);text-decoration:none;font-weight:600}
+
+/* simple responsive tweaks */
+@media (max-width:600px){.container{margin:16px auto;padding:0 12px}.header-row{flex-direction:column;align-items:flex-start;gap:8px}}
+
+/* Layout (sidebar + topbar) */
+.app-layout{display:flex;min-height:100vh}
+.sidebar{width:240px;padding:20px;background:linear-gradient(180deg,#f7fff5, #f0fff1);border-right:1px solid rgba(0,0,0,0.03);display:flex;flex-direction:column;gap:12px}
+.sidebar .sidebar-brand{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.logo-placeholder{width:36px;height:36px;border-radius:8px;background:linear-gradient(180deg,var(--eco-green),var(--eco-dark));display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700}
+.brand-text{font-weight:700;color:var(--eco-dark)}
+.nav{display:flex;flex-direction:column;gap:6px;margin-top:8px}
+.nav-item{padding:10px 12px;border-radius:8px;color:var(--eco-dark);text-decoration:none}
+.nav-item.active{background:rgba(31,164,95,0.12)}
+.nav-section{font-size:12px;color:var(--muted);margin-top:8px}
+.sidebar-footer{margin-top:auto;font-size:13px;color:var(--muted)}
+
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid rgba(0,0,0,0.04);background:linear-gradient(90deg, rgba(255,255,255,0.7), rgba(255,255,255,0.9))}
+.topbar .brand{display:flex;align-items:center;gap:8px}
+.topbar .user-info{display:flex;flex-direction:column;align-items:flex-end;margin-right:12px}
+.main-column{flex:1;display:flex;flex-direction:column}
+.content{padding:20px}
+
+@media (max-width:900px){.sidebar{display:none}.app-layout{flex-direction:column}.topbar{position:sticky;top:0;z-index:10}}
+
+/* Metric cards */
+.metric-card{display:flex;flex-direction:column;gap:10px;padding:18px;border-radius:12px}
+.metric-card-header{display:flex;align-items:center;gap:12px}
+.metric-icon{width:48px;height:48px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;color:white}
+.metric-icon.bg-green{background:linear-gradient(180deg,var(--eco-green),var(--eco-dark))}
+.metric-title{font-size:13px;color:var(--muted);margin-bottom:6px}
+.metric-value{font-size:22px;color:var(--eco-dark);font-weight:700}
+.metric-unit{font-size:13px;color:var(--muted);font-weight:600}
+.metric-sub{margin-top:6px}
+
+/* Topbar branding */
+.logo-leaf{width:44px;height:44px;border-radius:10px;background:linear-gradient(180deg,var(--eco-green),var(--eco-dark));display:flex;align-items:center;justify-content:center}
+.app-name{font-weight:700;color:var(--eco-dark)}
+.app-tag{font-size:12px;color:var(--muted)}
+.avatar{width:36px;height:36px;border-radius:50%;background:#eaf7ed;display:flex;align-items:center;justify-content:center;margin:0 10px;font-weight:700;color:var(--eco-dark)}
+
+/* nav icons */
+.nav-icon{display:inline-flex;width:22px;height:22px;align-items:center;justify-content:center;margin-right:8px}
+.nav-item{display:flex;align-items:center}
+.nav-item.active{background:linear-gradient(90deg, rgba(31,164,95,0.12), rgba(31,164,95,0.06))}
+
+/* small responsive tweak for metric card layout */
+@media (max-width:700px){.card-grid{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}}
