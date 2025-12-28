@@ -10,15 +10,19 @@ exports.logWaste = async (req, res) => {
   try {
     const { category, quantity, wasteDate, notes, aiPrediction } = req.body;
 
+    // Support both JSON body and multipart form fields like 'quantity[value]'
+    const quantityValue = (quantity && quantity.value) || req.body['quantity[value]'] || req.body.quantityValue || req.body.quantity;
+    const quantityUnit = (quantity && quantity.unit) || req.body['quantity[unit]'] || req.body.quantityUnit || 'kg';
+
     // Get user's location
     const user = await User.findById(req.user.id);
 
     const wasteData = {
       user: req.user.id,
-      category,
+      category: category || (aiPrediction && aiPrediction.predictedCategory) || 'other',
       quantity: {
-        value: quantity.value,
-        unit: quantity.unit || 'kg'
+        value: Number(quantityValue) || 0,
+        unit: quantityUnit || 'kg'
       },
       wasteDate: wasteDate || new Date(),
       location: {

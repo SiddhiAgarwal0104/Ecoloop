@@ -1,8 +1,17 @@
 import React from 'react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useNotifications } from '../../contexts/NotificationsContext';
 
 export default function Topbar() {
   const { user, logout } = useAuth();
+  const { notifications = [], fetchNotifications } = useNotifications();
+
+  React.useEffect(() => {
+    fetchNotifications(true).catch(() => {});
+  }, [fetchNotifications]);
+
+  const unreadCount = notifications.filter(n => !n.isRead).length;
+
   return (
     <header className="topbar">
       <div className="brand">
@@ -18,6 +27,13 @@ export default function Topbar() {
       </div>
 
       <div className="topbar-actions">
+        <div style={{ marginRight: 12 }}>
+          <a href="/notifications" className="nav-item" title="Notifications">
+            <span className="nav-icon">🔔</span>
+            {unreadCount > 0 && <span style={{ fontSize: 12, marginLeft: 6, color: 'var(--eco-dark)', fontWeight: 700 }}>{unreadCount}</span>}
+          </a>
+        </div>
+
         <div className="user-info">
           <div className="user-name">{user?.name || user?.email}</div>
           <div className="user-role">{user?.role}</div>

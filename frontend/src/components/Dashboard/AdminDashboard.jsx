@@ -1,6 +1,18 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import api from '../../api/axios';
 
 export default function AdminDashboard() {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    setLoading(true);
+    api.get('/admin/analytics')
+      .then(res => setData(res.data.data))
+      .catch(() => setData(null))
+      .finally(() => setLoading(false));
+  }, []);
+
   return (
     <div className="dashboard container">
       <div className="header-row">
@@ -16,7 +28,7 @@ export default function AdminDashboard() {
             <div className="metric-icon bg-green">🗑️</div>
             <div>
               <div className="metric-title">Waste Collected</div>
-              <div className="metric-value">— <span className="metric-unit">kg</span></div>
+              <div className="metric-value">{loading ? '…' : (data?.totalWeightKg || 0)} <span className="metric-unit">kg</span></div>
             </div>
           </div>
           <div className="metric-sub small-muted">Across platform</div>
@@ -27,7 +39,7 @@ export default function AdminDashboard() {
             <div className="metric-icon bg-green">🌿</div>
             <div>
               <div className="metric-title">CO₂ Saved</div>
-              <div className="metric-value">— <span className="metric-unit">kg</span></div>
+              <div className="metric-value">{loading ? '…' : (data?.totalCO2 || 0)} <span className="metric-unit">kg</span></div>
             </div>
           </div>
           <div className="metric-sub small-muted">Estimated</div>
@@ -49,7 +61,7 @@ export default function AdminDashboard() {
             <div className="metric-icon bg-green">📍</div>
             <div>
               <div className="metric-title">Active Localities</div>
-              <div className="metric-value">—</div>
+              <div className="metric-value">{data?.category?.length || 0}</div>
             </div>
           </div>
           <div className="metric-sub small-muted">Monitored</div>
@@ -62,6 +74,7 @@ export default function AdminDashboard() {
         <div className="card">
           <h4>Locality analytics</h4>
           <div className="small-muted">View per-locality trends and performance</div>
+          <pre style={{marginTop:8}}>{JSON.stringify(data?.monthly || {}, null, 2)}</pre>
         </div>
         <div className="card">
           <h4>NGO monitoring</h4>

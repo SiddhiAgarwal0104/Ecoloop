@@ -1,0 +1,6 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom Ecoloop helpers */
+:root{--eco-green:#1fa45f;--eco-dark:#0f6b3a}

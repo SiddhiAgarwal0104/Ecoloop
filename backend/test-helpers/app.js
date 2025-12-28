@@ -25,10 +25,16 @@ module.exports = {
     const authRoutes = require('../routes/auth.routes');
     const wasteRoutes = require('../routes/waste.routes');
     const notificationRoutes = require('../routes/notification.routes');
+    const lendRoutes = require('../routes/lend.routes');
+    const requestRoutes = require('../routes/request.routes');
+    const adminRoutes = require('../routes/admin.routes');
 
     app.use('/api/auth', authRoutes);
     app.use('/api/waste', wasteRoutes);
     app.use('/api/notifications', notificationRoutes);
+    app.use('/api/lend', lendRoutes);
+    app.use('/api/requests', requestRoutes);
+    app.use('/api/admin', adminRoutes);
 
     // simple health
     app.get('/health', (req, res) => res.status(200).json({ ok: true }));

@@ -22,9 +22,20 @@ app.use(express.urlencoded({ extended: true }));
 
 // CORS middleware
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  origin: function (origin, callback) {
+    // allow requests with no origin (e.g., curl, server-to-server)
+    if (!origin) return callback(null, true);
+    const allowed = [process.env.FRONTEND_URL || 'http://localhost:3000', 'http://localhost:3001'];
+    if (allowed.indexOf(origin) !== -1) return callback(null, true);
+    return callback(new Error('Not allowed by CORS'));
+  },
   credentials: true
 }));
+
+// Ensure upload directories exist
+const fs = require('fs');
+const uploadDirs = ['uploads', 'uploads/waste-images', 'uploads/item-images'];
+uploadDirs.forEach(dir => { if (!fs.existsSync(path.join(__dirname, dir))) fs.mkdirSync(path.join(__dirname, dir), { recursive: true }); });
 
 // Static files
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
@@ -51,6 +62,10 @@ app.use('/api/lend', lendRoutes);
 app.use('/api/requests', requestRoutes);
 app.use('/api/notifications', notificationRoutes);
 
+// Admin routes
+const adminRoutes = require('./routes/admin.routes');
+app.use('/api/admin', adminRoutes);
+
 // 404 handler
 app.use((req, res) => {
   res.status(404).json({
@@ -71,19 +86,27 @@ app.use((err, req, res, next) => {
 });
 
 const PORT = process.env.PORT || 5000;
+const HOST = process.env.HOST || '0.0.0.0';
 
-const server = app.listen(PORT, () => {
-  console.log(`
-╔════════════════════════════════════════╗
-║   SIDDHI Server Running Successfully   ║
-║   Port: ${PORT}                          ║
-║   Environment: ${process.env.NODE_ENV || 'development'}              ║
-╚════════════════════════════════════════╝
-  `);
+const server = app.listen(PORT, HOST, () => {
+  const address = server.address();
+  const host = address && address.address ? (address.address === '::' ? '127.0.0.1' : address.address) : HOST;
+  console.log(`Server listening at http://${host}:${address.port}`);
+  console.log(`\n╔════════════════════════════════════════╗\n║   SIDDHI Server Running Successfully   ║\n║   Port: ${PORT}                          ║\n║   Environment: ${process.env.NODE_ENV || 'development'}              ║\n╚════════════════════════════════════════╝\n  `);
+});
+
+// Graceful shutdown on signals
+process.on('SIGINT', () => {
+  console.log('SIGINT received: closing server');
+  server.close(() => process.exit(0));
 });
 
 // Handle unhandled promise rejections
 process.on('unhandledRejection', (err, promise) => {
   console.log(`Error: ${err.message}`);
-  server.close(() => process.exit(1));
+  if (server && server.close) {
+    server.close(() => process.exit(1));
+  } else {
+    process.exit(1);
+  }
 });

@@ -259,7 +259,7 @@ borrowRequestSchema.virtual('daysUntilExpiry').get(function() {
 });
 
 // Pre-save middleware
-borrowRequestSchema.pre('save', function(next) {
+borrowRequestSchema.pre('save', async function() {
   // Add to status history if status changed
   if (this.isModified('status')) {
     this.statusHistory.push({
@@ -272,8 +272,6 @@ borrowRequestSchema.pre('save', function(next) {
   if (this.status === 'pending' && new Date() > this.expiresAt) {
     this.status = 'expired';
   }
-  
-  next();
 });
 
 // Method to accept request

@@ -3,6 +3,7 @@
 const BorrowRequest = require('../models/BorrowRequest');
 const LendItem = require('../models/LendItem');
 const User = require('../models/User');
+const Notification = require('../models/Notification');
 
 // @desc    Create new borrow/donate request
 // @route   POST /api/requests/create
@@ -66,6 +67,9 @@ exports.createRequest = async (req, res) => {
     }
 
     const request = await BorrowRequest.create(requestData);
+
+    // Create notification for owner
+    await Notification.create({ user: item.owner, title: 'New request', message: `${req.user.name || 'A user'} requested your item '${item.title}'`, type: 'action', data: { requestId: request._id } });
 
     // Populate for response
     await request.populate('item', 'title category images');
@@ -209,6 +213,9 @@ exports.acceptRequest = async (req, res) => {
 
     await request.acceptRequest(acceptanceNote);
 
+    // Notify requester
+    await Notification.create({ user: request.requester, title: 'Request accepted', message: `Your request for '${request.itemTitle || 'an item'}' has been accepted`, type: 'success', data: { requestId: request._id } });
+
     await request.populate('requester', 'name phone address');
     await request.populate('item', 'title category');
 
@@ -261,6 +268,9 @@ exports.rejectRequest = async (req, res) => {
     }
 
     await request.rejectRequest(rejectionReason);
+
+    // Notify requester
+    await Notification.create({ user: request.requester, title: 'Request rejected', message: `Your request for '${request.itemTitle || 'an item'}' has been rejected`, type: 'warning', data: { requestId: request._id } });
 
     res.status(200).json({
       success: true,
