@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Package, CheckCircle, XCircle } from 'lucide-react';
 import RequestDetails from '../components/request/RequestDetails';
 import Modal from '../components/shared/Modal';
@@ -15,6 +16,7 @@ const ActiveLendings = () => {
   const [loading, setLoading] = useState(true);
   const [selectedLending, setSelectedLending] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchLendings();
@@ -65,7 +67,14 @@ const ActiveLendings = () => {
 
   return (
     <div className="min-h-screen bg-eco-light p-6">
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-5xl mx-auto">
+        <button
+          onClick={() => window.history.length > 1 ? window.history.back() : window.location.assign('/community/requests')}
+          className="flex items-center gap-2 text-gray-600 hover:text-eco-main transition-colors mb-4"
+        >
+          <span style={{fontSize:20,lineHeight:0}}>&larr;</span>
+          <span>Back</span>
+        </button>
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-eco-dark mb-2">
@@ -136,12 +145,19 @@ const ActiveLendings = () => {
                   </p>
                 </div>
 
-                <div className="flex gap-3">
+                <div className="flex gap-3 flex-wrap">
                   <button
                     onClick={() => setSelectedLending(lending)}
                     className="btn-outline flex-1"
                   >
                     View Details
+                  </button>
+
+                  <button
+                    onClick={() => navigate(`/community/chat/${lending._id}`)}
+                    className="btn-secondary flex-1"
+                  >
+                    Open Chat
                   </button>
 
                   {lending.status === 'CONFIRMED' && (

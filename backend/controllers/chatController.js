@@ -32,15 +32,12 @@ exports.getChatRooms = async (req, res) => {
 };
 
 /**
- * Get chat room by request ID
- * GET /api/community/chat/room/:requestId
+ * Get chat room by CHAT ROOM ID
+ * GET /api/community/chat/room-by-id/:chatRoomId
  */
-exports.getChatRoomByRequest = async (req, res) => {
+exports.getChatRoomById = async (req, res) => {
   try {
-    const chatRoom = await ChatRoom.findOne({
-      requestId: req.params.requestId,
-      'participants.userId': req.user.id,
-    })
+    const chatRoom = await ChatRoom.findById(req.params.chatRoomId)
       .populate('requestId')
       .populate('participants.userId', 'name email');
 
@@ -62,6 +59,39 @@ exports.getChatRoomByRequest = async (req, res) => {
     });
   }
 };
+
+
+/**
+ * Get chat room by request ID
+ * GET /api/community/chat/room/:requestId
+ */
+exports.getOrCreateChatRoomByRequest = async (req, res) => {
+  try {
+    const { requestId } = req.params;
+
+    let chatRoom = await ChatRoom.findOne({ requestId })
+      .populate('requestId')
+      .populate('participants.userId', 'name email');
+
+    if (!chatRoom) {
+      return res.status(404).json({
+        success: false,
+        message: 'Chat room not found',
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: chatRoom,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 
 /**
  * Get messages for a chat room
@@ -127,11 +157,19 @@ exports.sendMessage = async (req, res) => {
     const { chatRoomId } = req.params;
     const { content, type = 'text' } = req.body;
 
-    // Verify chat room and user participation
+    // ✅ IMPORTANT VALIDATION
+    if (!content || !content.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Message content is required',
+      });
+    }
+
     const chatRoom = await ChatRoom.findById(chatRoomId).populate(
       'participants.userId',
       'name email'
     );
+
     if (!chatRoom) {
       return res.status(404).json({
         success: false,
@@ -142,6 +180,7 @@ exports.sendMessage = async (req, res) => {
     const isParticipant = chatRoom.participants.some(
       (p) => p.userId._id.toString() === req.user.id
     );
+
     if (!isParticipant) {
       return res.status(403).json({
         success: false,
@@ -149,7 +188,6 @@ exports.sendMessage = async (req, res) => {
       });
     }
 
-    // Create message
     const message = await ChatMessage.create({
       chatRoomId,
       senderId: req.user.id,
@@ -159,26 +197,9 @@ exports.sendMessage = async (req, res) => {
 
     await message.populate('senderId', 'name email');
 
-    // Update chat room last message time
     chatRoom.lastMessageAt = new Date();
     await chatRoom.save();
 
-    // Get recipient
-    const recipient = chatRoom.participants.find(
-      (p) => p.userId._id.toString() !== req.user.id
-    );
-
-    // Create notification
-    await createNotification({
-      userId: recipient.userId._id,
-      type: 'NEW_MESSAGE',
-      title: 'New message',
-      message: `You have a new message in your chat`,
-      relatedId: chatRoom._id,
-      relatedType: 'ChatRoom',
-    });
-
-    // Emit socket event
     const io = getIO();
     io.to(chatRoomId).emit('newMessage', message);
 
@@ -193,7 +214,6 @@ exports.sendMessage = async (req, res) => {
     });
   }
 };
-
 /**
  * Send an image message
  * POST /api/community/chat/:chatRoomId/image

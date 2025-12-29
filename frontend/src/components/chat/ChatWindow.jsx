@@ -53,9 +53,18 @@ const ChatWindow = ({ chatRoom, onBack }) => {
   };
 
   const handleNewMessage = (message) => {
-    setMessages((prev) => [...prev, message]);
-    socketService.markMessagesAsRead(chatRoom._id);
-  };
+  // 🚫 Ignore own message (already added optimistically)
+  const handleNewMessage = (message) => {
+  setMessages((prev) => {
+    if (prev.some((m) => m._id === message._id)) return prev;
+    return [...prev, message];
+  });
+};
+
+
+  setMessages((prev) => [...prev, message]);
+};
+
 
   const handleLendingConfirmed = (data) => {
     // Refresh chat room data or show notification
@@ -63,30 +72,60 @@ const ChatWindow = ({ chatRoom, onBack }) => {
   };
 
   const handleSendMessage = async (content) => {
-    if (!content.trim()) return;
+  if (!content.trim() || sending) return;
 
-    try {
-      setSending(true);
-      await sendMessage(chatRoom._id, content);
-      // Message will be added via socket
-    } catch (error) {
-      console.error('Error sending message:', error);
-    } finally {
-      setSending(false);
-    }
+  const tempMessage = {
+    _id: `temp-${Date.now()}`,
+    senderId: {
+      _id: user.id,
+      name: user.name,
+    },
+    content,
+    type: 'text',
+    createdAt: new Date().toISOString(),
   };
 
-  const handleSendImage = async (file) => {
-    try {
-      setSending(true);
-      await sendImageMessage(chatRoom._id, file);
-      // Message will be added via socket
-    } catch (error) {
-      console.error('Error sending image:', error);
-    } finally {
-      setSending(false);
-    }
+  setMessages((prev) => [...prev, tempMessage]);
+  setSending(true);
+
+  try {
+    await sendMessage(chatRoom._id, content);
+  } catch (error) {
+    console.error('Error sending message:', error);
+  } finally {
+    setSending(false);
+  }
+};
+
+
+
+const handleSendImage = async (file) => {
+  if (sending) return;
+
+  const tempMessage = {
+    _id: `temp-${Date.now()}`,
+    senderId: {
+      _id: user.id,
+      name: user.name,
+    },
+    content: URL.createObjectURL(file),
+    type: 'image',
+    createdAt: new Date().toISOString(),
   };
+
+  setMessages((prev) => [...prev, tempMessage]);
+  setSending(true);
+
+  try {
+    await sendImageMessage(chatRoom._id, file);
+  } catch (error) {
+    console.error('Error sending image:', error);
+  } finally {
+    setSending(false);
+  }
+};
+
+
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });

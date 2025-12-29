@@ -1,75 +1,87 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, Filter, Plus } from 'lucide-react';
+import { toast } from 'react-toastify';
+
+
 import RequestCard from '../components/request/RequestCard';
 import Loader from '../components/shared/Loader';
+
+
 import { getLocalityRequests, showInterest } from '../services/requestService';
-import { toast } from 'react-toastify';
 import { useAuth } from '../context/AuthContext';
+
 
 const CATEGORIES = [
   'All',
   'Electronics',
   'Tools',
   'Sports',
-  'Books',
-  'Furniture',
-  'Vehicles',
-  'Clothing',
-  'Kitchen',
-  'Garden',
-  'Other',
 ];
+
 
 const RequestsFeed = () => {
   const navigate = useNavigate();
-  const { user, loading: authLoading } = useAuth();
+  const { user, authLoading } = useAuth();
+
+
   const [requests, setRequests] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
-  const [selectedStatus, setSelectedStatus] = useState('OPEN');
+  const [selectedStatus, setSelectedStatus] = useState('ALL');
+
 
   useEffect(() => {
-    if (!authLoading) {
-      fetchRequests();
-    }
+    fetchRequests();
   }, [selectedCategory, selectedStatus, authLoading]);
+
 
   const fetchRequests = async () => {
     try {
       setLoading(true);
-      const filters = {
-        status: selectedStatus,
-      };
+
+
+      const filters = {};
+
+
+      if (selectedStatus !== 'ALL') {
+        filters.status = selectedStatus;
+      }
+
+
       if (selectedCategory !== 'All') {
         filters.category = selectedCategory;
       }
-      
+
+
       const response = await getLocalityRequests(filters);
       setRequests(response || []);
     } catch (error) {
-      console.error('Error fetching requests:', error);
+      console.error(error);
       setRequests([]);
-      // Don't show error toast if not authenticated
-      if (user) {
-        toast.error('Failed to fetch requests');
-      }
+      if (user) toast.error('Failed to fetch requests');
     } finally {
       setLoading(false);
     }
   };
 
+
   const handleInterested = async (requestId) => {
     try {
-      const response = await showInterest(requestId);
-      toast.success('Chat room created! You can now discuss with the requester.');
-      navigate(`/community/chat/${requestId}`);
+      await showInterest(requestId);
+      toast.success('Chat room created! You can now discuss.');
+      //navigate(`/community/chat/${requestId}`);
+      navigate(`/community/chat/${chatRoom._id}`, {
+  state: { chatRoom }
+});
+
+
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to show interest');
-      console.error('Error showing interest:', error);
     }
   };
+
 
   if (authLoading) {
     return (
@@ -79,13 +91,23 @@ const RequestsFeed = () => {
     );
   }
 
+
   const filteredRequests = requests.filter((request) =>
     request.itemName.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+
+
   return (
     <div className="min-h-screen bg-eco-light p-6">
       <div className="max-w-7xl mx-auto">
+        <button
+          onClick={() => navigate(-1)}
+          className="flex items-center gap-2 text-gray-600 hover:text-eco-main transition-colors mb-4"
+        >
+          <span style={{fontSize:20,lineHeight:0}}>&larr;</span>
+          <span>Back</span>
+        </button>
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
@@ -101,17 +123,20 @@ const RequestsFeed = () => {
             className="btn-primary flex items-center gap-2"
           >
             <Plus size={20} />
-            <span>Create Request</span>
+            Create Request
           </button>
         </div>
+
 
         {/* Filters */}
         <div className="card mb-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+
             {/* Search */}
             <div className="relative">
               <Search
-                className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
                 size={20}
               />
               <input
@@ -123,7 +148,8 @@ const RequestsFeed = () => {
               />
             </div>
 
-            {/* Category Filter */}
+
+            {/* Category */}
             <div className="flex items-center gap-2">
               <Filter size={20} className="text-gray-500" />
               <select
@@ -137,20 +163,32 @@ const RequestsFeed = () => {
                   </option>
                 ))}
               </select>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => navigate('/community/active-lendings')}
+                  className="btn-secondary flex items-center gap-2 px-6 py-2 border border-eco-main text-eco-main rounded-lg hover:bg-eco-main hover:text-white transition-colors"
+                  style={{ fontWeight: 600 }}
+                >
+                  Active Lendings
+                </button>
+              </div>
             </div>
 
-            {/* Status Filter */}
+
+            {/* Status */}
             <select
               value={selectedStatus}
               onChange={(e) => setSelectedStatus(e.target.value)}
               className="input-field"
             >
+              <option value="ALL">All</option>
               <option value="OPEN">Open</option>
               <option value="NEGOTIATING">Negotiating</option>
               <option value="CONFIRMED">Confirmed</option>
             </select>
           </div>
         </div>
+
 
         {/* Requests Grid */}
         {loading ? (
@@ -161,7 +199,7 @@ const RequestsFeed = () => {
           <div className="text-center py-20">
             <p className="text-gray-500 text-lg">No requests found</p>
             <p className="text-gray-400 text-sm mt-2">
-              Try adjusting your filters or create a new request
+              Try adjusting filters or create a request
             </p>
           </div>
         ) : (
@@ -179,5 +217,6 @@ const RequestsFeed = () => {
     </div>
   );
 };
+
 
 export default RequestsFeed;

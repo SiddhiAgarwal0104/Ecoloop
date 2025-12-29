@@ -1,15 +1,18 @@
 const express = require('express');
 const router = express.Router();
+
 const {
   getChatRooms,
-  getChatRoomByRequest,
+  getChatRoomById,        // ✅ MISSING IMPORT ADDED
+  getOrCreateChatRoomByRequest,
   getChatMessages,
   sendMessage,
   sendImageMessage,
   confirmLend,
   confirmBorrow,
 } = require('../controllers/chatController');
-const { protect } = require('../middleware/auth');
+
+const { protect } = require('../middleware/authMiddleware'); // ✅ correct middleware
 const upload = require('../middleware/upload');
 
 // All routes require authentication
@@ -17,7 +20,9 @@ router.use(protect);
 
 // Chat room routes
 router.get('/chat/rooms', getChatRooms);
-router.get('/chat/room/:requestId', getChatRoomByRequest);
+//router.get('/chat/room/:requestId', getOrCreateChatRoomByRequest);
+router.get('/chat/room/:requestId', getOrCreateChatRoomByRequest);
+router.get('/chat/room-by-id/:chatRoomId', getChatRoomById);
 
 // Message routes
 router.get('/chat/:chatRoomId/messages', getChatMessages);

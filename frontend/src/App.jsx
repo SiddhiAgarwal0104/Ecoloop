@@ -1,3 +1,27 @@
+// import ActiveLendingsSimple from "./pages/ActiveLendingsSimple";
+        <Route
+          path="/community/active-lendings-simple"
+          element={
+            <PrivateRoute>
+              <>
+                <Navbar />
+                <ActiveLendingsSimple />
+              </>
+            </PrivateRoute>
+          }
+        />
+import ActiveLendingsSimple from "./pages/ActiveLendingsSimple";
+        <Route
+          path="/community/active-lendings-simple"
+          element={
+            <PrivateRoute>
+              <>
+                <Navbar />
+                <ActiveLendingsSimple />
+              </>
+            </PrivateRoute>
+          }
+        />
 // import React from 'react';
 // import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 // import { ToastContainer } from 'react-toastify';
@@ -88,16 +112,31 @@ import ChatPage from "./pages/ChatPage";
 import ActiveLendings from "./pages/ActiveLendings";
 import MyRequests from "./pages/MyRequests";
 
+
+import Notifications from "./pages/Notifications";
 import api from "./services/api";
 
 //const response = await api.get("/dashboard/household");
 
 function App() {
+    // ...existing code...
   return (
     <>
       <Routes>
         {/* 🔹 Default */}
         <Route path="/" element={<Navigate to="/login" replace />} />
+        {/* 🔹 Notifications (Protected) */}
+        <Route
+          path="/notifications"
+          element={
+            <PrivateRoute>
+              <>
+                <Navbar />
+                <Notifications />
+              </>
+            </PrivateRoute>
+          }
+        />
 
         {/* 🔹 Auth */}
         <Route path="/login" element={<Login />} />
@@ -140,6 +179,8 @@ function App() {
 
         <Route
           path="/community/chat/:requestId"
+          //path = "/community/chat/:chatRoomId"
+
           element={
             <PrivateRoute>
               <>
@@ -157,6 +198,19 @@ function App() {
               <>
                 <Navbar />
                 <ActiveLendings />
+              </>
+            </PrivateRoute>
+          }
+        />
+
+        {/* 🔹 Active Lendings Simple (Protected) */}
+        <Route
+          path="/community/active-lendings-simple"
+          element={
+            <PrivateRoute>
+              <>
+                <Navbar />
+                <ActiveLendingsSimple />
               </>
             </PrivateRoute>
           }

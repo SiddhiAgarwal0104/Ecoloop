@@ -187,7 +187,9 @@ const getActiveLendings = async (req, res) => {
     const lendings = await CommunityRequest.find({
       acceptedBy: req.user.id,
       status: { $in: ['CONFIRMED', 'ACTIVE'] },
-    });
+    })
+      .populate('requesterId', 'name email')
+      .populate('acceptedBy', 'name email');
 
     res.status(200).json({ success: true, data: lendings });
   } catch (err) {

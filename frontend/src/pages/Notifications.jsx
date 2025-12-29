@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
-import axios from 'axios';
 import { Bell } from 'lucide-react';
 import { format } from 'date-fns';
+import { getNotifications as fetchNotificationsApi, markAsRead as markAsReadApi } from '../services/notificationService';
 
 const Notifications = () => {
   const [notifications, setNotifications] = useState([]);
@@ -15,8 +15,8 @@ const Notifications = () => {
 
   const fetchNotifications = async () => {
     try {
-      const response = await axios.get('http://localhost:5000/api/notifications');
-      setNotifications(response.data.data.notifications);
+      const response = await fetchNotificationsApi();
+      setNotifications(response.data || []);
       setError(null);
     } catch (error) {
       console.error('Failed to fetch notifications:', error);
@@ -29,7 +29,7 @@ const Notifications = () => {
 
   const markAsRead = async (notificationId) => {
     try {
-      await axios.patch(`http://localhost:5000/api/notifications/${notificationId}/read`);
+      await markAsReadApi(notificationId);
       setNotifications(notifications.map(n =>
         n._id === notificationId ? { ...n, read: true } : n
       ));

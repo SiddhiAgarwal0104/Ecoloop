@@ -58,19 +58,12 @@ const Layout = ({ children }) => {
           ))}
         </nav>
 
-        <div className="absolute bottom-0 left-0 right-0 p-6 border-t border-gray-200 bg-white">
-          <div className="flex items-center mb-4">
-            <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold">
-              {user?.name?.charAt(0).toUpperCase()}
-            </div>
-            <div className="ml-3 flex-1">
-              <p className="text-sm font-medium text-gray-900">{user?.name}</p>
-              <p className="text-xs text-gray-500">{user?.email}</p>
-            </div>
-          </div>
+        {/* Floating Logout Button - Bottom Right */}
+        <div style={{ position: 'fixed', bottom: 24, left: 24, zIndex: 50 }}>
           <button
             onClick={handleLogout}
-            className="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
+            className="px-3 py-2 bg-red-600 text-white rounded-full shadow-lg hover:bg-red-700 transition-colors text-xs font-semibold"
+            title="Logout"
           >
             Logout
           </button>
