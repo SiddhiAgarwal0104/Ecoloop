@@ -1,0 +1,182 @@
+/* =========================
+   Tailwind Base Imports
+========================= */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* =========================
+   External CSS (Leaflet)
+========================= */
+@import 'leaflet/dist/leaflet.css';
+
+/* =========================
+   Base Layer
+========================= */
+@layer base {
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply font-sans antialiased;
+    background-color: #f9fafb;
+    color: #1f2937;
+    line-height: 1.6;
+  }
+
+  img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+  }
+}
+
+/* =========================
+   Components Layer
+========================= */
+@layer components {
+  /* Cards */
+  .card {
+    @apply bg-white p-6 rounded-2xl shadow-lg 
+           hover:shadow-xl transition-shadow 
+           border border-gray-100;
+  }
+
+  /* Buttons */
+  .btn {
+    @apply px-4 py-2 rounded-lg font-medium 
+           transition-colors duration-200 cursor-pointer;
+  }
+
+  .btn-primary {
+    @apply btn bg-green-600 text-white hover:bg-green-700;
+  }
+
+  .btn-secondary {
+    @apply btn bg-white text-green-600 
+           border-2 border-green-600 
+           hover:bg-green-50;
+  }
+
+  .btn-success {
+    @apply btn bg-green-600 text-white hover:bg-green-700;
+  }
+
+  .btn-danger {
+    @apply btn bg-red-600 text-white hover:bg-red-700;
+  }
+
+  /* Inputs */
+  .input-field {
+    @apply w-full px-4 py-3 rounded-xl 
+           border border-gray-300 
+           focus:outline-none focus:ring-2 
+           focus:ring-green-600 
+           focus:border-transparent 
+           transition-all;
+  }
+
+  .input-error {
+    @apply border-red-500 focus:ring-red-500;
+  }
+
+  /* Navbar */
+  .navbar {
+    @apply bg-white border-b border-gray-200 px-6 py-4;
+  }
+
+  /* Badges */
+  .badge {
+    @apply inline-block px-3 py-1 
+           rounded-full text-sm font-medium;
+  }
+
+  .badge-success {
+    @apply badge bg-green-100 text-green-800;
+  }
+
+  .badge-warning {
+    @apply badge bg-yellow-100 text-yellow-800;
+  }
+
+  .badge-danger {
+    @apply badge bg-red-100 text-red-800;
+  }
+
+  .badge-info {
+    @apply badge bg-blue-100 text-blue-800;
+  }
+
+  /* Skeleton Loader */
+  .skeleton {
+    @apply bg-gray-200 rounded animate-pulse;
+  }
+
+  /* Leaflet Map */
+  .leaflet-container {
+    @apply rounded-xl;
+  }
+}
+
+/* =========================
+   Utilities Layer
+========================= */
+@layer utilities {
+  .fade-in {
+    animation: fadeIn 0.3s ease-in-out;
+  }
+
+  .animate-slideIn {
+    animation: slideIn 0.3s ease-out;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes slideIn {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}
+
+/* =========================
+   Scrollbar Styling
+========================= */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
