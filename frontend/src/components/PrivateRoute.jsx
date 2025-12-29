@@ -4,10 +4,24 @@ import { useAuth } from "../context/AuthContext";
 const PrivateRoute = ({ children }) => {
   const { token, loading } = useAuth();
 
-  if (loading) return null;
+  // ✅ Show loader while auth is checking
+  if (loading) {
+    return (
+      <div style={{ minHeight: "100vh", display: "flex", justifyContent: "center", alignItems: "center" }}>
+        <p>Loading...</p>
+      </div>
+    );
+  }
 
-  return token ? children : <Navigate to="/login" replace />;
+  // ❌ No token → login
+  if (!token) {
+    return <Navigate to="/login" replace />;
+  }
+
+  // ✅ Token present → allow
+  return children;
 };
 
 export default PrivateRoute;
+
 

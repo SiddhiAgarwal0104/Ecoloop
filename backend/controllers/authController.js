@@ -15,33 +15,20 @@ exports.register = async (req, res, next) => {
       city,
       locality,
       pincode,
-      address,
       latitude,
       longitude,
     } = req.body;
 
-    // ✅ Validation
-    if (
-      !name ||
-      !email ||
-      !password ||
-      !city ||
-      !locality ||
-      !pincode ||
-      !address ||
-      !latitude ||
-      !longitude
-    ) {
+    // ✅ ONLY REQUIRED FIELDS
+    if (!name || !email || !password || !city || !locality || !pincode) {
       return next(new AppError('Please provide all required fields', 400));
     }
 
-    // ✅ Check existing user
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       return next(new AppError('Email already registered', 400));
     }
 
-    // ✅ Create user
     const user = await User.create({
       name,
       email,
@@ -49,19 +36,18 @@ exports.register = async (req, res, next) => {
       password,
       role: 'HOUSEHOLD',
 
-      // 🔥 NORMALIZED LOCATION DATA
       city: city.toLowerCase().trim(),
       locality: locality.toLowerCase().trim(),
       pincode: pincode.toString().trim(),
 
-      address,
+      // ✅ SAFE DEFAULTS
+      address: 'NA',
       location: {
-        latitude: parseFloat(latitude),
-        longitude: parseFloat(longitude),
+        latitude: Number(latitude),
+        longitude: Number(longitude),
       },
     });
 
-    // ✅ Generate token (CITY INCLUDED)
     const token = generateToken({
       id: user._id,
       role: user.role,
@@ -72,20 +58,8 @@ exports.register = async (req, res, next) => {
 
     res.status(201).json({
       success: true,
-      message: 'Registration successful',
       data: {
-        user: {
-          id: user._id,
-          name: user.name,
-          email: user.email,
-          phone: user.phone,
-          role: user.role,
-          city: user.city,
-          locality: user.locality,
-          pincode: user.pincode,
-          address: user.address,
-          location: user.location,
-        },
+        user,
         token,
       },
     });

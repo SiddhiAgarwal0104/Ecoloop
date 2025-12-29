@@ -1,8 +1,8 @@
 const jwt = require('jsonwebtoken');
 
-const generateToken = (userId) => {
+const generateToken = (payload) => {
   return jwt.sign(
-    { id: userId },
+    payload, // ✅ FULL OBJECT PAYLOAD
     process.env.JWT_SECRET,
     {
       expiresIn: process.env.JWT_EXPIRES_IN || '7d',
@@ -11,3 +11,4 @@ const generateToken = (userId) => {
 };
 
 module.exports = generateToken;
+

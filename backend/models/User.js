@@ -22,21 +22,37 @@ const userSchema = new mongoose.Schema({
   password: {
     type: String,
     required: [true, 'Password is required'],
-    minlength: [6, 'Password must be at least 6 characters']
+    minlength: [6, 'Password must be at least 6 characters'],
+    select: false // ✅ Password by default return nahi hoga
   },
   role: {
     type: String,
     enum: ['HOUSEHOLD', 'NGO', 'RECYCLER'],
     default: 'HOUSEHOLD'
   },
+  // ✅ ADD THESE FIELDS
+  city: {
+    type: String,
+    required: [true, 'City is required'],
+    trim: true,
+    lowercase: true
+  },
   locality: {
     type: String,
     required: [true, 'Locality is required'],
+    trim: true,
+    lowercase: true
+  },
+  pincode: {
+    type: String,
+    required: [true, 'Pincode is required'],
     trim: true
   },
+  // END OF NEW FIELDS
   address: {
     type: String,
-    required: [true, 'Address is required'],
+    default: 'NA',
+    //required: [true, 'Address is required'],
     trim: true
   },
   location: {

@@ -42,21 +42,42 @@ const createRequest = async (req, res) => {
 
 /**
  * GET COMMUNITY REQUESTS (same locality)
+ * 
  */
+
+
 const getLocalityRequests = async (req, res) => {
   try {
+    console.log("USER CITY:", req.user.city);
+    console.log("USER ID:", req.user.id);
     const city = req.user.city.toLowerCase().trim();
+
+    const { status, category } = req.query;
 
     const query = {
       city,
       requesterId: { $ne: req.user.id },
-      status: { $in: ['OPEN', 'NEGOTIATING'] },
     };
+    console.log("FINAL QUERY:", query);
+
+
+    if (status) {
+      query.status = status;
+    } else {
+      query.status = { $in: ['OPEN', 'NEGOTIATING'] };
+    }
+
+    if (category) {
+      query.category = category;
+    }
+
 
     const requests = await CommunityRequest.find(query)
       .populate('requesterId', 'name email')
       .populate('acceptedBy', 'name email')
       .sort({ createdAt: -1 });
+
+    console.log("REQUESTS FOUND:", requests.length);  
 
     res.status(200).json({
       success: true,
@@ -74,8 +95,12 @@ const getLocalityRequests = async (req, res) => {
 /**
  * GET MY REQUESTS
  */
+
+
 const getMyRequests = async (req, res) => {
   try {
+    console.log("USER CITY:", req.user.city);
+    console.log("USER ID:", req.user.id);
     const requests = await CommunityRequest.find({
       requesterId: req.user.id,
     }).sort({ createdAt: -1 });
@@ -89,8 +114,12 @@ const getMyRequests = async (req, res) => {
 /**
  * GET REQUEST BY ID
  */
+
+
 const getRequestById = async (req, res) => {
   try {
+    console.log("USER CITY:", req.user.city);
+    console.log("USER ID:", req.user.id);
     const request = await CommunityRequest.findById(req.params.id)
       .populate('requesterId', 'name email')
       .populate('acceptedBy', 'name email');

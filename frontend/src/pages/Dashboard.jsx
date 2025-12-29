@@ -12,23 +12,23 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    fetchDashboard();
-  }, []);
+  // useEffect(() => {
+  //   fetchDashboard();
+  // }, []);
 
-  const fetchDashboard = async () => {
-    try {
-      const response = await axios.get('http://localhost:5000/api/dashboard/household');
-      setDashboardData(response.data.data);
-      setError(null);
-    } catch (error) {
-      console.error('Failed to fetch dashboard:', error);
-      setError(error.message || 'Failed to load dashboard');
-      setDashboardData(null);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // const fetchDashboard = async () => {
+  //   try {
+  //     const response = await axios.get('http://localhost:5000/api/dashboard/household');
+  //     setDashboardData(response.data.data);
+  //     setError(null);
+  //   } catch (error) {
+  //     console.error('Failed to fetch dashboard:', error);
+  //     setError(error.message || 'Failed to load dashboard');
+  //     setDashboardData(null);
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
 
   if (loading) {
     return (
