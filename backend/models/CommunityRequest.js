@@ -45,6 +45,11 @@ const communityRequestSchema = new mongoose.Schema(
       ref: 'User',
       default: null,
     },
+    city: {
+      type: String,
+      required: true,
+      index: true,
+    },
     locality: {
       type: String,
       required: [true, 'Locality is required'],

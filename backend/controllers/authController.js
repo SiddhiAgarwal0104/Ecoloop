@@ -2,41 +2,73 @@ const User = require('../models/User');
 const generateToken = require('../utils/generateToken');
 const AppError = require('../utils/appError');
 
-// @desc    Register household user
-// @route   POST /api/auth/register
-// @access  Public
+// ===============================
+// REGISTER USER
+// ===============================
 exports.register = async (req, res, next) => {
   try {
-    const { name, email, phone, password, locality, address, latitude, longitude } = req.body;
+    const {
+      name,
+      email,
+      phone,
+      password,
+      city,
+      locality,
+      pincode,
+      address,
+      latitude,
+      longitude,
+    } = req.body;
 
-    // Validate required fields
-    if (!name || !email || !password || !locality || !address || !latitude || !longitude) {
+    // ✅ Validation
+    if (
+      !name ||
+      !email ||
+      !password ||
+      !city ||
+      !locality ||
+      !pincode ||
+      !address ||
+      !latitude ||
+      !longitude
+    ) {
       return next(new AppError('Please provide all required fields', 400));
     }
 
-    // Check if user exists
+    // ✅ Check existing user
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       return next(new AppError('Email already registered', 400));
     }
 
-    // Create user with HOUSEHOLD role only
+    // ✅ Create user
     const user = await User.create({
       name,
       email,
       phone,
       password,
       role: 'HOUSEHOLD',
-      locality,
+
+      // 🔥 NORMALIZED LOCATION DATA
+      city: city.toLowerCase().trim(),
+      locality: locality.toLowerCase().trim(),
+      pincode: pincode.toString().trim(),
+
       address,
       location: {
         latitude: parseFloat(latitude),
-        longitude: parseFloat(longitude)
-      }
+        longitude: parseFloat(longitude),
+      },
     });
 
-    // Generate token
-    const token = generateToken(user._id, user.role, user.locality);
+    // ✅ Generate token (CITY INCLUDED)
+    const token = generateToken({
+      id: user._id,
+      role: user.role,
+      city: user.city,
+      locality: user.locality,
+      pincode: user.pincode,
+    });
 
     res.status(201).json({
       success: true,
@@ -48,46 +80,51 @@ exports.register = async (req, res, next) => {
           email: user.email,
           phone: user.phone,
           role: user.role,
+          city: user.city,
           locality: user.locality,
+          pincode: user.pincode,
           address: user.address,
-          location: user.location
+          location: user.location,
         },
-        token
-      }
+        token,
+      },
     });
   } catch (error) {
     next(error);
   }
 };
 
-// @desc    Login user
-// @route   POST /api/auth/login
-// @access  Public
+// ===============================
+// LOGIN USER
+// ===============================
 exports.login = async (req, res, next) => {
   try {
     const { email, password } = req.body;
 
-    // Validate input
     if (!email || !password) {
       return next(new AppError('Please provide email and password', 400));
     }
 
-    // Find user
     const user = await User.findOne({ email }).select('+password');
-    
+
     if (!user) {
       return next(new AppError('Invalid credentials', 401));
     }
 
-    // Check password
     const isPasswordCorrect = await user.comparePassword(password);
-    
+
     if (!isPasswordCorrect) {
       return next(new AppError('Invalid credentials', 401));
     }
 
-    // Generate token
-    const token = generateToken(user._id, user.role, user.locality);
+    // ✅ Generate token with CITY
+    const token = generateToken({
+      id: user._id,
+      role: user.role,
+      city: user.city,
+      locality: user.locality,
+      pincode: user.pincode,
+    });
 
     res.status(200).json({
       success: true,
@@ -99,21 +136,23 @@ exports.login = async (req, res, next) => {
           email: user.email,
           phone: user.phone,
           role: user.role,
+          city: user.city,
           locality: user.locality,
+          pincode: user.pincode,
           address: user.address,
-          location: user.location
+          location: user.location,
         },
-        token
-      }
+        token,
+      },
     });
   } catch (error) {
     next(error);
   }
 };
 
-// @desc    Get current user profile
-// @route   GET /api/auth/me
-// @access  Private
+// ===============================
+// GET LOGGED-IN USER
+// ===============================
 exports.getMe = async (req, res, next) => {
   try {
     const user = await User.findById(req.user.id);
@@ -127,11 +166,13 @@ exports.getMe = async (req, res, next) => {
           email: user.email,
           phone: user.phone,
           role: user.role,
+          city: user.city,
           locality: user.locality,
+          pincode: user.pincode,
           address: user.address,
-          location: user.location
-        }
-      }
+          location: user.location,
+        },
+      },
     });
   } catch (error) {
     next(error);

@@ -1,14 +1,13 @@
 import axios from 'axios';
 
-// Create axios instance with default config
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
+  baseURL: import.meta.env.VITE_API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
-// Add request interceptor to include auth token
+// REQUEST: attach token
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
@@ -20,14 +19,14 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Add response interceptor to handle errors
+// RESPONSE: handle 401 safely
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // Clear token and redirect to login if unauthorized
+      console.warn("Unauthorized – token removed");
       localStorage.removeItem('token');
-      window.location.href = '/';
+      // ❌ DO NOT FORCE REDIRECT NOW
     }
     return Promise.reject(error);
   }
