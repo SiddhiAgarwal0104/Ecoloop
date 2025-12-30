@@ -6,23 +6,31 @@ const notificationSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
-  message: {
-    type: String,
-    required: [true, 'Notification message is required'],
-    trim: true
-  },
   type: {
     type: String,
-    enum: ['DONATION', 'RECYCLE', 'GENERAL'],
-    default: 'GENERAL'
+    enum: [
+      'DONATION_ACCEPTED',
+      'DONATION_STATUS_UPDATE',
+      'DONATION_PICKED_UP',
+      'DONATION_COMPLETED',
+      'SYSTEM'
+    ],
+    required: true
   },
-  relatedId: {
-    type: mongoose.Schema.Types.ObjectId,
-    refPath: 'relatedModel'
-  },
-  relatedModel: {
+  title: {
     type: String,
-    enum: ['Donation', 'Recycle']
+    required: true,
+    trim: true
+  },
+  message: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  donationId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Donation',
+    default: null
   },
   isRead: {
     type: Boolean,
@@ -33,6 +41,7 @@ const notificationSchema = new mongoose.Schema({
 });
 
 // Index for faster queries
-notificationSchema.index({ userId: 1, isRead: 1, createdAt: -1 });
+notificationSchema.index({ userId: 1, isRead: 1 });
+notificationSchema.index({ createdAt: -1 });
 
 module.exports = mongoose.model('Notification', notificationSchema);

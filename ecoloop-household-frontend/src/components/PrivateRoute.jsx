@@ -1,23 +1,26 @@
-import React from 'react'
-import { Navigate, Outlet } from 'react-router-dom'
-import { useAuth } from '../context/AuthContext'
+import { Navigate, Outlet, useLocation } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 
-const PrivateRoute = () => {
-  const { user, loading } = useAuth()
+const PrivateRoute = ({ allowedRoles = [] }) => {
+  const { user, loading } = useAuth();
+  const location = useLocation();
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-screen bg-gray-100">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-gray-300 border-t-blue-600 rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600 font-medium">Loading...</p>
-        </div>
-      </div>
-    )
+  if (loading) return <div>Loading...</div>;
+
+  // ❌ Not logged in
+  if (!user) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // ✅ AUTH CHECK
-  return user ? <Outlet /> : <Navigate to="/login" replace />
-}
+  // ❌ Logged in but wrong role
+  if (allowedRoles.length > 0 && !allowedRoles.includes(user.role)) {
+    if (user.role === "HOUSEHOLD") return <Navigate to="/dashboard" replace />;
+    if (user.role === "NGO") return <Navigate to="/ngo/dashboard" replace />;
+    if (user.role === "RECYCLER") return <Navigate to="/recycler/dashboard" replace />;
+  }
 
-export default PrivateRoute
+  // ✅ Allowed
+  return <Outlet />;
+};
+
+export default PrivateRoute;

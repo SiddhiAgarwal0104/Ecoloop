@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { GoogleLogin } from '@react-oauth/google';
 import { Leaf, Mail, Lock, AlertCircle } from 'lucide-react';
@@ -10,15 +10,8 @@ const Login = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const { login, googleLogin, user } = useAuth();
+  const { login, googleLogin } = useAuth();
   const navigate = useNavigate();
-
-  // ✅ MAIN FIX — redirect AFTER user is set
-  useEffect(() => {
-    if (user) {
-      navigate('/dashboard');
-    }
-  }, [user, navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -26,6 +19,8 @@ const Login = () => {
     setLoading(true);
     try {
       await login(email, password);
+      // Login success - AuthContext will set user, then PrivateRoute will redirect
+      navigate('/');
     } catch (err) {
       setError(err.response?.data?.error || 'Login failed');
     } finally {
@@ -37,10 +32,20 @@ const Login = () => {
     setError('');
     setLoading(true);
     try {
-      await googleLogin(cred.credential);
-      // ❌ yahan navigate nahi
-    } catch {
-      setError('Google sign-in failed');
+      const response = await googleLogin(cred.credential);
+      
+      // ✅ Explicit navigation based on response
+      if (response.needsProfileCompletion) {
+        navigate('/profile/complete');
+      } else if (response.user.role === 'NGO') {
+        navigate('/ngo/dashboard');
+      } else if (response.user.role === 'RECYCLER') {
+        navigate('/recycler/dashboard');
+      } else {
+        navigate('/dashboard');
+      }
+    } catch (err) {
+      setError(err.response?.data?.error || 'Google sign-in failed');
     } finally {
       setLoading(false);
     }
@@ -57,7 +62,7 @@ const Login = () => {
             Welcome Back!
           </h1>
           <p className="text-gray-600">
-            Login to your EcoLoop household account
+            Login to your EcoLoop account
           </p>
         </div>
 
@@ -71,7 +76,6 @@ const Login = () => {
         <GoogleLogin
           onSuccess={handleGoogleSuccess}
           onError={() => setError('Google sign-in failed')}
-          width="100%"
         />
 
         <div className="relative my-6">

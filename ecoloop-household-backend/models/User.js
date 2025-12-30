@@ -21,7 +21,6 @@ const userSchema = new mongoose.Schema({
   },
   password: {
     type: String,
-    // ⭐ Password NOT required for Google sign-in users
     required: function() {
       return !this.googleId;
     },
@@ -34,25 +33,25 @@ const userSchema = new mongoose.Schema({
   },
   locality: {
     type: String,
-    trim: true
+    trim: true,
+    default: 'Not Set'
   },
   address: {
     type: String,
-    trim: true
+    trim: true,
+    default: 'Not Set'
   },
   location: {
-    latitude: {
-      type: Number
+    type: {
+      latitude: { type: Number },
+      longitude: { type: Number }
     },
-    longitude: {
-      type: Number
-    }
+    default: null
   },
-  // ⭐ NEW: Google OAuth fields
   googleId: {
     type: String,
     unique: true,
-    sparse: true  // Allows null values for non-Google users
+    sparse: true
   },
   profilePicture: {
     type: String
@@ -61,12 +60,35 @@ const userSchema = new mongoose.Schema({
     type: String,
     enum: ['local', 'google'],
     default: 'local'
+  },
+  profileCompleted: {
+    type: Boolean,
+    default: false
   }
 }, {
   timestamps: true
 });
 
-// Hash password before saving (only for local auth)
+// Virtual to check if profile is complete
+userSchema.virtual('isProfileComplete').get(function () {
+  if (this.role === 'NGO') {
+    return (
+      this.locality?.trim() &&
+      this.address?.trim() &&
+      this.location &&
+      typeof this.location.latitude === 'number' &&
+      typeof this.location.longitude === 'number'
+    );
+  }
+
+  return (
+    this.locality?.trim() &&
+    this.address?.trim()
+  );
+});
+
+
+// Hash password before saving
 userSchema.pre('save', async function(next) {
   if (!this.isModified('password') || !this.password) {
     return next();
@@ -81,5 +103,9 @@ userSchema.methods.comparePassword = async function(enteredPassword) {
   if (!this.password) return false;
   return await bcrypt.compare(enteredPassword, this.password);
 };
+
+// Ensure virtuals are included in JSON
+userSchema.set('toJSON', { virtuals: true });
+userSchema.set('toObject', { virtuals: true });
 
 module.exports = mongoose.model('User', userSchema);
