@@ -1,6 +1,5 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
-import Loader from '../components/common/Loader';
 
 /**
  * Protected Route Component
@@ -13,32 +12,35 @@ const ProtectedRoute = ({ children }) => {
   // Check if user is authenticated
   const isAuthenticated = () => {
     const token = localStorage.getItem('adminToken');
-    return token !== null;
+    const adminData = localStorage.getItem('adminData');
+    
+    // Check if both token and adminData exist
+    if (!token || !adminData) {
+      return false;
+    }
+    
+    // Check if adminData is valid JSON (not the string "undefined")
+    if (adminData === 'undefined' || adminData === 'null') {
+      // Clean up bad data
+      localStorage.removeItem('adminToken');
+      localStorage.removeItem('adminData');
+      return false;
+    }
+    
+    try {
+      JSON.parse(adminData);
+      return true;
+    } catch (error) {
+      // Clean up bad data
+      localStorage.removeItem('adminToken');
+      localStorage.removeItem('adminData');
+      return false;
+    }
   };
 
-  // Auto-create mock token for testing (REMOVE IN PRODUCTION)
-  useEffect(() => {
-    if (!isAuthenticated()) {
-      // ⚠️ TEMPORARY: Mock authentication for testing
-      // Remove this block when real login is integrated
-      const mockToken = 'mock-admin-token-for-testing';
-      const mockAdminData = {
-        id: '1',
-        name: 'Admin User',
-        email: 'admin@ecoloop.com',
-        role: 'admin',
-      };
-
-      localStorage.setItem('adminToken', mockToken);
-      localStorage.setItem('adminData', JSON.stringify(mockAdminData));
-
-      console.warn('⚠️ Using mock authentication for testing. Remove in production!');
-    }
-  }, []);
-
-  // Show loader while checking authentication
+  // If not authenticated, redirect to login
   if (!isAuthenticated()) {
-    return <Loader fullScreen message="Authenticating..." />;
+    return <Navigate to="/admin/login" state={{ from: location }} replace />;
   }
 
   // If authenticated, render children

@@ -6,9 +6,9 @@ const adminSchema = new mongoose.Schema(
   {
     name: {
       type: String,
-      required: [true, 'Please provide admin name'],
       trim: true,
-      maxlength: [50, 'Name cannot exceed 50 characters']
+      maxlength: [50, 'Name cannot exceed 50 characters'],
+      default: ''
     },
     email: {
       type: String,
@@ -23,19 +23,30 @@ const adminSchema = new mongoose.Schema(
     },
     password: {
       type: String,
-      required: [true, 'Please provide password'],
       minlength: [6, 'Password must be at least 6 characters'],
       select: false
     },
+    googleId: {
+      type: String,
+      sparse: true,
+      trim: true
+    },
     role: {
       type: String,
-      enum: ['admin', 'super_admin'],
+      enum: ['admin'],
       default: 'admin'
+    },
+    assignedCity: {
+      type: String,
+      trim: true,
+      default: '',
+      index: true
     },
     phone: {
       type: String,
       trim: true,
-      match: [/^[0-9]{10}$/, 'Please provide a valid 10-digit phone number']
+      default: '',
+      match: [/^([0-9]{10})?$/, 'Please provide a valid 10-digit phone number']
     },
     isActive: {
       type: Boolean,
@@ -43,11 +54,6 @@ const adminSchema = new mongoose.Schema(
     },
     lastLogin: {
       type: Date,
-      default: null
-    },
-    createdBy: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Admin',
       default: null
     }
   },

@@ -1,12 +1,22 @@
 import React, { useState } from 'react';
-import { Leaf, LogOut, User, Settings } from 'lucide-react';
+import { Leaf, LogOut, User, Settings, MapPin } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const Header = () => {
   const [showDropdown, setShowDropdown] = useState(false);
   const navigate = useNavigate();
   
-  const adminData = JSON.parse(localStorage.getItem('adminData') || '{}');
+  // Safely parse adminData from localStorage
+  let adminData = {};
+  try {
+    const stored = localStorage.getItem('adminData');
+    if (stored && stored !== 'undefined' && stored !== 'null') {
+      adminData = JSON.parse(stored);
+    }
+  } catch (error) {
+    console.error('Error parsing adminData from localStorage:', error);
+    adminData = {};
+  }
 
   const handleLogout = () => {
     localStorage.removeItem('adminToken');
@@ -35,7 +45,10 @@ const Header = () => {
         >
           <div className="text-right">
             <p className="text-sm font-semibold text-eco-dark">{adminData.name || 'Admin'}</p>
-            <p className="text-xs text-gray-600">{adminData.role || 'Administrator'}</p>
+            <div className="flex items-center gap-1 text-xs text-gray-600">
+              <MapPin size={12} />
+              <span>{adminData.assignedCity || 'No city assigned'}</span>
+            </div>
           </div>
           <div className="w-10 h-10 bg-eco-main rounded-full flex items-center justify-center">
             <User className="text-white" size={20} />
@@ -45,7 +58,13 @@ const Header = () => {
         {/* Dropdown Menu */}
         {showDropdown && (
           <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-gray-200 py-2">
-            <button className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center gap-2 text-gray-700">
+            <button 
+              onClick={() => {
+                navigate('/admin/profile');
+                setShowDropdown(false);
+              }}
+              className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center gap-2 text-gray-700"
+            >
               <User size={16} />
               <span>Profile</span>
             </button>

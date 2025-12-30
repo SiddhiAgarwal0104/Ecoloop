@@ -1,13 +1,78 @@
 const Admin = require('../models/Admin');
+const { OAuth2Client } = require('google-auth-library');
 
 /**
- * @desc    Register new admin (Super Admin only)
+ * @desc    Register new admin (Public - email validation required)
  * @route   POST /api/admin/auth/register
- * @access  Private/Super Admin
+ * @access  Public
  */
 const registerAdmin = async (req, res) => {
   try {
-    const { name, email, password, phone, role } = req.body;
+    const { name, email, password, phone, assignedCity } = req.body;
+
+    // Validate name
+    if (!name || name.trim().length < 2) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide a valid name (minimum 2 characters)'
+      });
+    }
+
+    // ⚠️ CRITICAL: Only @ecoloop.com email addresses allowed
+    // No exceptions - all admins must use company email
+    if (!email || !/^[^\s@]+@ecoloop\.com$/.test(email)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Only @ecoloop.com email addresses are allowed. Example: admin@ecoloop.com'
+      });
+    }
+
+    // Validate password
+    if (!password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide a password'
+      });
+    }
+
+    if (password.length < 8) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password must be at least 8 characters'
+      });
+    }
+
+    if (!/(?=.*[a-z])/.test(password)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password must contain a lowercase letter'
+      });
+    }
+
+    if (!/(?=.*[A-Z])/.test(password)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password must contain an uppercase letter'
+      });
+    }
+
+    if (!/(?=.*\d)/.test(password)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password must contain a number'
+      });
+    }
+
+    if (!/(?=.*[@$!%*?&])/.test(password)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password must contain a special character (@$!%*?&)'
+      });
+    }
+
+    // NOTE: City and phone are NOT required during registration
+    // They will be filled in on the CompleteProfile page after registration
+    // This allows two-step registration flow: Register -> CompleteProfile -> Dashboard
 
     // Check if admin already exists
     const existingAdmin = await Admin.findOne({ email });
@@ -24,8 +89,8 @@ const registerAdmin = async (req, res) => {
       email,
       password,
       phone,
-      role: role || 'admin',
-      createdBy: req.admin._id
+      role: 'admin',
+      assignedCity
     });
 
     res.status(201).json({
@@ -99,6 +164,7 @@ const loginAdmin = async (req, res) => {
       message: 'Login successful',
       data: {
         admin: admin.getPublicProfile(),
+        city: admin.assignedCity,
         token
       }
     });
@@ -142,11 +208,36 @@ const getMe = async (req, res) => {
  */
 const updateProfile = async (req, res) => {
   try {
-    const { name, phone } = req.body;
+    const { name, phone, assignedCity } = req.body;
+
+    // Validate name if provided
+    if (name && name.trim().length < 2) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide a valid name (minimum 2 characters)'
+      });
+    }
+
+    // Validate phone if provided
+    if (phone && !/^[0-9]{10}$/.test(phone)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Phone must be 10 digits'
+      });
+    }
+
+    // Validate city if provided
+    if (assignedCity && assignedCity.trim().length < 2) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please enter a valid city name'
+      });
+    }
 
     const fieldsToUpdate = {};
-    if (name) fieldsToUpdate.name = name;
+    if (name) fieldsToUpdate.name = name.trim();
     if (phone) fieldsToUpdate.phone = phone;
+    if (assignedCity) fieldsToUpdate.assignedCity = assignedCity.trim();
 
     const admin = await Admin.findByIdAndUpdate(
       req.admin._id,
@@ -310,6 +401,94 @@ const deactivateAdmin = async (req, res) => {
   }
 };
 
+/**
+ * @desc    Login/Register with Google OAuth
+ * @route   POST /api/admin/auth/google
+ * @access  Public
+ */
+const googleLogin = async (req, res) => {
+  try {
+    const { token } = req.body;
+
+    if (!token) {
+      return res.status(400).json({
+        success: false,
+        message: 'Google token is required'
+      });
+    }
+
+    // Verify token with Google
+    const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+    const ticket = await client.verifyIdToken({
+      idToken: token,
+      audience: process.env.GOOGLE_CLIENT_ID
+    });
+
+    const payload = ticket.getPayload();
+    const { email, name, sub: googleId, picture } = payload;
+
+    // ⚠️ CRITICAL: Even Google OAuth users MUST have @ecoloop.com email
+    // No exceptions - enforced at authentication level
+    if (!email || !/^[^\s@]+@ecoloop\.com$/.test(email)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Google account must be linked to @ecoloop.com email address. Sign in with your company email.'
+      });
+    }
+
+    // Check if admin exists
+    let admin = await Admin.findOne({ email });
+
+    if (!admin) {
+      // Create new admin with Google auth
+      // For Google users, we don't require assignedCity upfront
+      // They'll need to set it on first login or in profile
+      admin = await Admin.create({
+        name,
+        email,
+        googleId,
+        phone: '',
+        assignedCity: 'Not Set',
+        isActive: true
+      });
+    } else {
+      // Update Google ID if not already set
+      if (!admin.googleId) {
+        admin.googleId = googleId;
+        await admin.save();
+      }
+
+      // Check if admin is active
+      if (!admin.isActive) {
+        return res.status(403).json({
+          success: false,
+          message: 'This admin account has been deactivated'
+        });
+      }
+    }
+
+    // Update last login
+    await admin.updateLastLogin();
+
+    // Generate token
+    const authToken = admin.generateAuthToken();
+
+    res.status(200).json({
+      success: true,
+      message: 'Login successful',
+      token: authToken,
+      admin: admin.getPublicProfile()
+    });
+  } catch (error) {
+    console.error('Google login error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Google authentication failed',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   registerAdmin,
   loginAdmin,
@@ -318,5 +497,6 @@ module.exports = {
   changePassword,
   logoutAdmin,
   getAllAdmins,
-  deactivateAdmin
+  deactivateAdmin,
+  googleLogin
 };

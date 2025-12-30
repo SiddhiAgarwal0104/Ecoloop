@@ -16,11 +16,19 @@ const getDashboardStats = async (req, res) => {
     const startOfLastMonth = startOfMonth(subMonths(currentDate, 1));
     const endOfLastMonth = endOfMonth(subMonths(currentDate, 1));
 
-    // Get current month stats
+    // Get admin's assigned city
+    const adminCity = req.admin.assignedCity;
+
+    // Get localities in admin's city
+    const adminLocalities = await Locality.find({ city: adminCity }).select('_id');
+    const localityIds = adminLocalities.map(loc => loc._id);
+
+    // Get current month stats (filtered by city)
     const currentMonthStats = await WasteLog.aggregate([
       {
         $match: {
-          date: { $gte: startOfCurrentMonth }
+          date: { $gte: startOfCurrentMonth },
+          localityId: { $in: localityIds }
         }
       },
       {
@@ -35,11 +43,12 @@ const getDashboardStats = async (req, res) => {
       }
     ]);
 
-    // Get last month stats for comparison
+    // Get last month stats for comparison (filtered by city)
     const lastMonthStats = await WasteLog.aggregate([
       {
         $match: {
-          date: { $gte: startOfLastMonth, $lte: endOfLastMonth }
+          date: { $gte: startOfLastMonth, $lte: endOfLastMonth },
+          localityId: { $in: localityIds }
         }
       },
       {
@@ -51,15 +60,15 @@ const getDashboardStats = async (req, res) => {
       }
     ]);
 
-    // Get total localities, NGOs, recyclers
+    // Get total localities, NGOs, recyclers (filtered by city)
     const [totalLocalities, activeLocalities, totalNGOs, activeNGOs, totalRecyclers, activeRecyclers] = 
       await Promise.all([
-        Locality.countDocuments(),
-        Locality.countDocuments({ isActive: true }),
-        NGO.countDocuments(),
-        NGO.countDocuments({ isActive: true, isVerified: true }),
-        Recycler.countDocuments(),
-        Recycler.countDocuments({ isActive: true, isVerified: true })
+        Locality.countDocuments({ city: adminCity }),
+        Locality.countDocuments({ city: adminCity, isActive: true }),
+        NGO.countDocuments({ city: adminCity }),
+        NGO.countDocuments({ city: adminCity, isActive: true, isVerified: true }),
+        Recycler.countDocuments({ city: adminCity }),
+        Recycler.countDocuments({ city: adminCity, isActive: true, isVerified: true })
       ]);
 
     // Calculate growth percentages

@@ -8,8 +8,16 @@ const SustainabilityImpact = () => {
   const [trends, setTrends] = useState([]);
   const [wasteByType, setWasteByType] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [adminCity, setAdminCity] = useState(null);
 
   useEffect(() => {
+    // Get admin city from localStorage
+    const adminData = localStorage.getItem('adminData');
+    if (adminData) {
+      const parsedData = JSON.parse(adminData);
+      setAdminCity(parsedData.city);
+    }
+    
     fetchImpactData();
   }, []);
 
@@ -53,8 +61,20 @@ const SustainabilityImpact = () => {
     <div className="max-w-7xl mx-auto p-6">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-eco-dark mb-2">Sustainability Impact</h1>
-        <p className="text-gray-600">Track environmental benefits and impact metrics</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-eco-dark mb-2">
+              {adminCity ? `${adminCity} - Sustainability Impact` : 'Sustainability Impact'}
+            </h1>
+            <p className="text-gray-600">Track environmental benefits and impact metrics</p>
+          </div>
+          {adminCity && (
+            <div className="bg-eco-light px-4 py-3 rounded-lg border border-eco-main">
+              <p className="text-sm font-semibold text-eco-dark">City</p>
+              <p className="text-xl font-bold text-eco-main">{adminCity}</p>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Impact Metrics Cards */}
@@ -130,7 +150,7 @@ const SustainabilityImpact = () => {
           <TreePine className="text-eco-main" size={24} />
           Environmental Impact Equivalents
         </h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl mx-auto">
           <div className="text-center p-4 bg-white rounded-xl">
             <TreePine size={40} className="mx-auto text-green-500 mb-3" />
             <p className="text-3xl font-bold text-eco-dark mb-2">
@@ -149,14 +169,7 @@ const SustainabilityImpact = () => {
             <p className="text-xs text-gray-500 mt-1">Based on energy saved</p>
           </div>
 
-          <div className="text-center p-4 bg-white rounded-xl">
-            <Truck size={40} className="mx-auto text-blue-500 mb-3" />
-            <p className="text-3xl font-bold text-eco-dark mb-2">
-              {impactData?.equivalents.trucksFilled}
-            </p>
-            <p className="text-sm text-gray-600">Garbage Trucks Filled</p>
-            <p className="text-xs text-gray-500 mt-1">Based on landfill reduction</p>
-          </div>
+
         </div>
       </div>
 

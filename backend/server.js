@@ -26,7 +26,7 @@ app.use(helmet());
 
 // Enable CORS
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:3000',
+  origin: process.env.CLIENT_URL || 'http://localhost:5173',
   credentials: true
 }));
 
@@ -56,6 +56,7 @@ app.use('/api/admin/localities', require('./routes/localities'));
 app.use('/api/admin', require('./routes/ngoRecycler'));
 app.use('/api/admin/sustainability', require('./routes/sustainability'));
 app.use('/api/admin/reports', require('./routes/reports'));
+app.use('/api/admin/community', require('./routes/community'));
 
 // === Error Handling ===
 

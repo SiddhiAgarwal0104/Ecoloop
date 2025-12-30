@@ -7,7 +7,8 @@ import {
   MapPin, 
   Award,
   AlertCircle,
-  Zap
+  Zap,
+  Share2
 } from 'lucide-react';
 import axios from 'axios';
 
@@ -15,10 +16,24 @@ const Dashboard = () => {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [aiInsights, setAiInsights] = useState(null);
+  const [communityStats, setCommunityStats] = useState(null);
+  const [adminCity, setAdminCity] = useState(null);
 
   useEffect(() => {
+    // Get admin city from localStorage
+    try {
+      const adminData = localStorage.getItem('adminData');
+      if (adminData && adminData !== 'undefined' && adminData !== 'null') {
+        const parsedData = JSON.parse(adminData);
+        setAdminCity(parsedData.assignedCity);
+      }
+    } catch (error) {
+      console.error('Error parsing adminData:', error);
+    }
+    
     fetchDashboardData();
     fetchAIInsights();
+    fetchCommunityStats();
   }, []);
 
   const fetchDashboardData = async () => {
@@ -53,6 +68,21 @@ const Dashboard = () => {
     }
   };
 
+  const fetchCommunityStats = async () => {
+    try {
+      const token = localStorage.getItem('adminToken');
+      const response = await axios.get(
+        `${import.meta.env.VITE_API_BASE_URL}/community/stats`,
+        {
+          headers: { Authorization: `Bearer ${token}` }
+        }
+      );
+      setCommunityStats(response.data.data);
+    } catch (error) {
+      console.error('Error fetching community stats:', error);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -65,8 +95,20 @@ const Dashboard = () => {
     <div className="max-w-7xl mx-auto p-6">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-eco-dark mb-2">Admin Dashboard</h1>
-        <p className="text-gray-600">Monitor community performance and sustainability impact</p>
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h1 className="text-3xl font-bold text-eco-dark mb-2">
+              {adminCity ? `${adminCity} - Admin Dashboard` : 'Admin Dashboard'}
+            </h1>
+            <p className="text-gray-600">Monitor community performance and sustainability impact</p>
+          </div>
+          {adminCity && (
+            <div className="bg-eco-light px-4 py-3 rounded-lg border border-eco-main">
+              <p className="text-sm font-semibold text-eco-dark">City</p>
+              <p className="text-xl font-bold text-eco-main">{adminCity}</p>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* KPI Cards */}
@@ -128,68 +170,8 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* AI Insights Section */}
-      {aiInsights && (
-        <div className="card mb-8 bg-gradient-to-r from-eco-light to-white border-l-4 border-eco-main">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="bg-eco-main p-2 rounded-lg">
-              <TrendingUp className="text-white" size={20} />
-            </div>
-            <h2 className="text-xl font-bold text-eco-dark">AI-Powered Insights</h2>
-          </div>
-
-          {/* High Waste Localities */}
-          {aiInsights.summary.highWasteLocalities?.length > 0 && (
-            <div className="mb-4 p-4 bg-orange-50 rounded-xl">
-              <h3 className="font-semibold text-orange-900 mb-2 flex items-center gap-2">
-                <AlertCircle size={18} />
-                High Waste Generation Detected
-              </h3>
-              {aiInsights.summary.highWasteLocalities.slice(0, 3).map((item, index) => (
-                <div key={index} className="mb-2 text-sm">
-                  <span className="font-medium">{item.locality.name}</span>
-                  <span className="text-gray-600"> - {item.insight}</span>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Low Participation */}
-          {aiInsights.summary.lowParticipationLocalities?.length > 0 && (
-            <div className="mb-4 p-4 bg-blue-50 rounded-xl">
-              <h3 className="font-semibold text-blue-900 mb-2 flex items-center gap-2">
-                <Users size={18} />
-                Low Participation Alert
-              </h3>
-              {aiInsights.summary.lowParticipationLocalities.slice(0, 3).map((item, index) => (
-                <div key={index} className="mb-2 text-sm">
-                  <span className="font-medium">{item.locality.name}</span>
-                  <span className="text-gray-600"> - {item.participationRate}% participation</span>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Recommendations */}
-          {aiInsights.recommendations?.length > 0 && (
-            <div className="p-4 bg-green-50 rounded-xl">
-              <h3 className="font-semibold text-green-900 mb-2 flex items-center gap-2">
-                <Award size={18} />
-                Recommended Actions
-              </h3>
-              {aiInsights.recommendations.map((rec, index) => (
-                <div key={index} className="mb-2 text-sm">
-                  <span className="font-medium text-eco-main">{rec.category}:</span>
-                  <span className="text-gray-700"> {rec.action}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
       {/* Quick Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {/* NGOs */}
         <div className="card">
           <h3 className="text-lg font-semibold text-eco-dark mb-4">NGO Partners</h3>
@@ -243,6 +225,25 @@ const Dashboard = () => {
           <div className="mt-4 pt-4 border-t border-gray-200">
             <p className="text-sm text-gray-600">
               Total Logs: <span className="font-semibold">{stats?.currentMonth.totalLogs}</span>
+            </p>
+          </div>
+        </div>
+
+        {/* Community Sharing */}
+        <div className="card">
+          <h3 className="text-lg font-semibold text-eco-dark mb-4">Community Sharing</h3>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-3xl font-bold text-eco-main">{communityStats?.stats.completedSharing || 0}</p>
+              <p className="text-sm text-gray-600">Items shared</p>
+            </div>
+            <div className="bg-eco-light p-4 rounded-full">
+              <Share2 className="text-eco-main" size={28} />
+            </div>
+          </div>
+          <div className="mt-4 pt-4 border-t border-gray-200">
+            <p className="text-sm text-gray-600">
+              Success Rate: <span className="font-semibold">{communityStats?.stats.successRate || 0}%</span>
             </p>
           </div>
         </div>

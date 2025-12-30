@@ -8,8 +8,16 @@ const LocalityAnalytics = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('all');
+  const [adminCity, setAdminCity] = useState(null);
 
   useEffect(() => {
+    // Get admin city from localStorage
+    const adminData = localStorage.getItem('adminData');
+    if (adminData) {
+      const parsedData = JSON.parse(adminData);
+      setAdminCity(parsedData.city);
+    }
+    
     fetchLocalities();
   }, []);
 
@@ -76,8 +84,20 @@ const LocalityAnalytics = () => {
     <div className="max-w-7xl mx-auto p-6">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-eco-dark mb-2">Community Analytics</h1>
-        <p className="text-gray-600">Track locality performance and participation rates</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-eco-dark mb-2">
+              {adminCity ? `${adminCity} - Community Analytics` : 'Community Analytics'}
+            </h1>
+            <p className="text-gray-600">Track locality performance and participation rates</p>
+          </div>
+          {adminCity && (
+            <div className="bg-eco-light px-4 py-3 rounded-lg border border-eco-main">
+              <p className="text-sm font-semibold text-eco-dark">City</p>
+              <p className="text-xl font-bold text-eco-main">{adminCity}</p>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Filters */}

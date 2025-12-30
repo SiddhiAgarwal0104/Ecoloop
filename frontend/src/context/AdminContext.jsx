@@ -83,14 +83,14 @@ export const AdminProvider = ({ children }) => {
       );
 
       if (response.data.success) {
-        const { token, admin: adminData } = response.data.data;
+        const { token, admin: adminData, city } = response.data.data;
 
         // Store in localStorage
         localStorage.setItem('adminToken', token);
-        localStorage.setItem('adminData', JSON.stringify(adminData));
+        localStorage.setItem('adminData', JSON.stringify({ ...adminData, city }));
 
         // Update state
-        setAdmin(adminData);
+        setAdmin({ ...adminData, city });
         setIsAuthenticated(true);
         setLoading(false);
 
