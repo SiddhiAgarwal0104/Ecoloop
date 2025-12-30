@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { GoogleLogin } from '@react-oauth/google';
-import { Leaf, User, Mail, Lock, Phone, AlertCircle } from 'lucide-react';
+import { Leaf, User, Mail, Lock, Phone, AlertCircle, Heart, Home } from 'lucide-react';
 
 const Register = () => {
   const [formData, setFormData] = useState({
@@ -10,6 +10,7 @@ const Register = () => {
     email: '',
     phone: '',
     password: '',
+    role: 'HOUSEHOLD',
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -26,15 +27,11 @@ const Register = () => {
     setLoading(true);
 
     try {
-      // Send without location - will be added later
       await register({
         ...formData,
         locality: 'Not Set',
         address: 'Not Set',
-        latitude: 0,
-        longitude: 0
       });
-      // Redirect to complete profile
       navigate('/profile/complete');
     } catch (err) {
       setError(err.response?.data?.error || 'Registration failed');
@@ -43,16 +40,23 @@ const Register = () => {
     }
   };
 
-  // ⭐ Handle Google Sign-In
   const handleGoogleSuccess = async (credentialResponse) => {
     setError('');
     setLoading(true);
 
     try {
-      const result = await googleLogin(credentialResponse.credential);
+      const response = await googleLogin(credentialResponse.credential, formData.role);
       
-      // Always redirect to profile completion
-      navigate('/profile/complete');
+      // ✅ Explicit navigation based on response
+      if (response.needsProfileCompletion) {
+        navigate('/profile/complete');
+      } else if (response.user.role === 'NGO') {
+        navigate('/ngo/dashboard');
+      } else if (response.user.role === 'RECYCLER') {
+        navigate('/recycler/dashboard');
+      } else {
+        navigate('/dashboard');
+      }
     } catch (err) {
       setError(err.response?.data?.error || 'Google sign-in failed');
     } finally {
@@ -72,7 +76,7 @@ const Register = () => {
             <Leaf className="text-white" size={40} />
           </div>
           <h1 className="text-3xl font-bold text-eco-dark mb-2">Join EcoLoop</h1>
-          <p className="text-gray-600">Create your household account</p>
+          <p className="text-gray-600">Create your account</p>
         </div>
 
         {error && (
@@ -82,14 +86,49 @@ const Register = () => {
           </div>
         )}
 
-        {/* ⭐ Google Sign-In Button */}
+        {/* Role Selection */}
+        <div className="mb-6">
+          <label className="block text-sm font-semibold text-gray-700 mb-3">
+            I am a *
+          </label>
+          <div className="grid grid-cols-2 gap-4">
+            <button
+              type="button"
+              onClick={() => setFormData({ ...formData, role: 'HOUSEHOLD' })}
+              className={`p-4 rounded-xl border-2 transition-all ${
+                formData.role === 'HOUSEHOLD'
+                  ? 'border-green-500 bg-green-50'
+                  : 'border-gray-200 hover:border-green-300'
+              }`}
+            >
+              <Home className={`mx-auto mb-2 ${formData.role === 'HOUSEHOLD' ? 'text-green-600' : 'text-gray-400'}`} size={32} />
+              <div className="font-semibold text-gray-800">Household</div>
+              <div className="text-xs text-gray-600 mt-1">Donate items</div>
+            </button>
+            
+            <button
+              type="button"
+              onClick={() => setFormData({ ...formData, role: 'NGO' })}
+              className={`p-4 rounded-xl border-2 transition-all ${
+                formData.role === 'NGO'
+                  ? 'border-green-500 bg-green-50'
+                  : 'border-gray-200 hover:border-green-300'
+              }`}
+            >
+              <Heart className={`mx-auto mb-2 ${formData.role === 'NGO' ? 'text-green-600' : 'text-gray-400'}`} size={32} />
+              <div className="font-semibold text-gray-800">NGO</div>
+              <div className="text-xs text-gray-600 mt-1">Collect donations</div>
+            </button>
+          </div>
+        </div>
+
+        {/* Google Sign-In */}
         <div className="mb-6">
           <GoogleLogin
             onSuccess={handleGoogleSuccess}
             onError={handleGoogleError}
             theme="outline"
             size="large"
-            width="100%"
             text="signup_with"
           />
         </div>
@@ -117,7 +156,7 @@ const Register = () => {
                   value={formData.name}
                   onChange={handleChange}
                   className="input-field pl-10"
-                  placeholder="John Doe"
+                  placeholder={formData.role === 'NGO' ? 'NGO Name' : 'Your Name'}
                   required
                 />
               </div>

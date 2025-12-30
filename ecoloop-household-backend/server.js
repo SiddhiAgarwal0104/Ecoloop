@@ -3,7 +3,9 @@ const cors = require('cors');
 const dotenv = require('dotenv');
 const connectDB = require('./config/db');
 const errorHandler = require('./middleware/errorHandler');
+const ngoRoutes = require('./routes/ngoRoutes');
 
+// After other routes
 dotenv.config();
 
 const app = express();
@@ -22,6 +24,8 @@ app.use('/api/donations', require('./routes/donationRoutes'));
 app.use('/api/recycle', require('./routes/recycleRoutes'));
 app.use('/api/dashboard', require('./routes/dashboardRoutes'));
 app.use('/api/notifications', require('./routes/notificationRoutes'));
+app.use('/api/ngo', ngoRoutes);
+
 
 // Health check
 app.get('/api/health', (req, res) => {

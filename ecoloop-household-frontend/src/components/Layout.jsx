@@ -1,70 +1,138 @@
-import React from 'react'
-import { Link, useNavigate, useLocation, Outlet } from 'react-router-dom'
-import { useAuth } from '../context/AuthContext'
+import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import { 
+  Home, 
+  Heart, 
+  Recycle, 
+  PlusCircle, 
+  Bell, 
+  User, 
+  LogOut,
+  Package,
+  Clock,
+  CheckCircle,
+  Leaf
+} from 'lucide-react';
 
 const Layout = () => {
-  const { user, logout } = useAuth()
-  const navigate = useNavigate()
-  const location = useLocation()
-
-  const isActive = (path) => location.pathname.startsWith(path)
+  const { user, logout } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
 
   const handleLogout = () => {
-    logout()
-    navigate('/login')
-  }
+    logout();
+    navigate('/login');
+  };
+
+  // Role-based navigation items
+  const getNavigationItems = () => {
+    if (user?.role === 'NGO') {
+      return [
+        { path: '/ngo/dashboard', icon: Home, label: 'Dashboard' },
+        { path: '/ngo/donations/available', icon: Package, label: 'Available Donations' },
+        { path: '/ngo/donations/accepted', icon: Clock, label: 'Accepted Donations' },
+        { path: '/notifications', icon: Bell, label: 'Notifications' },
+        { path: '/profile', icon: User, label: 'Profile' },
+      ];
+    } else if (user?.role === 'RECYCLER') {
+      return [
+        { path: '/recycler/dashboard', icon: Home, label: 'Dashboard' },
+        { path: '/recycler/requests/available', icon: Recycle, label: 'Available Requests' },
+        { path: '/recycler/requests/accepted', icon: Clock, label: 'Accepted Requests' },
+        { path: '/notifications', icon: Bell, label: 'Notifications' },
+        { path: '/profile', icon: User, label: 'Profile' },
+      ];
+    } else {
+      // HOUSEHOLD
+      return [
+        { path: '/dashboard', icon: Home, label: 'Dashboard' },
+        { path: '/donations', icon: Heart, label: 'My Donations' },
+        { path: '/donations/create', icon: PlusCircle, label: 'Create Donation' },
+        { path: '/recycles', icon: Recycle, label: 'My Recycles' },
+        { path: '/recycles/create', icon: PlusCircle, label: 'Create Recycle' },
+        { path: '/notifications', icon: Bell, label: 'Notifications' },
+        { path: '/profile', icon: User, label: 'Profile' },
+      ];
+    }
+  };
+
+  const navigationItems = getNavigationItems();
+
+  const isActive = (path) => {
+    return location.pathname === path;
+  };
 
   return (
-    <div className="flex h-screen bg-gray-100">
+    <div className="flex min-h-screen bg-gray-50">
       {/* Sidebar */}
-      <aside className="w-64 bg-white shadow-lg">
+      <aside className="w-64 bg-white shadow-lg fixed h-full">
         <div className="p-6 border-b">
-          <h1 className="text-2xl font-bold text-blue-600">EcoLoop</h1>
-          <p className="text-xs text-gray-500">Household Management</p>
+          <Link to="/" className="flex items-center gap-2">
+            <div className="bg-eco-main p-2 rounded-lg">
+              <Leaf className="text-white" size={24} />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-eco-dark">EcoLoop</h1>
+              <p className="text-xs text-gray-500">
+                {user?.role === 'NGO' ? 'NGO Management' : 
+                 user?.role === 'RECYCLER' ? 'Recycler Management' : 
+                 'Household Management'}
+              </p>
+            </div>
+          </Link>
         </div>
 
-        <nav className="mt-6">
-          {[
-            ['/dashboard', 'Dashboard'],
-            ['/donations', 'My Donations'],
-            ['/donations/create', 'Create Donation'],
-            ['/recycles', 'My Recycles'],
-            ['/recycles/create', 'Create Recycle'],
-            ['/notifications', 'Notifications'],
-            ['/profile', 'Profile'],
-          ].map(([path, label]) => (
-            <Link
-              key={path}
-              to={path}
-              className={`block px-6 py-3 ${
-                isActive(path)
-                  ? 'bg-blue-50 text-blue-600 font-semibold'
-                  : 'text-gray-700 hover:bg-gray-100'
-              }`}
-            >
-              {label}
-            </Link>
-          ))}
+        <nav className="p-4 space-y-2">
+          {navigationItems.map((item) => {
+            const Icon = item.icon;
+            return (
+              <Link
+                key={item.path}
+                to={item.path}
+                className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
+                  isActive(item.path)
+                    ? 'bg-eco-main text-white shadow-md'
+                    : 'text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                <Icon size={20} />
+                <span className="font-medium">{item.label}</span>
+              </Link>
+            );
+          })}
         </nav>
 
-        <div className="absolute bottom-0 w-64 p-6 border-t">
-          <p className="text-sm font-medium">{user?.name}</p>
-          <p className="text-xs text-gray-500 mb-2">{user?.email}</p>
+        {/* User Profile Section */}
+        <div className="absolute bottom-0 w-64 p-4 border-t bg-white">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-10 h-10 bg-eco-main rounded-full flex items-center justify-center">
+              <span className="text-white font-bold">
+                {user?.name?.charAt(0).toUpperCase()}
+              </span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-gray-800 truncate">{user?.name}</p>
+              <p className="text-xs text-gray-500 truncate">{user?.email}</p>
+            </div>
+          </div>
           <button
             onClick={handleLogout}
-            className="w-full bg-red-600 text-white py-2 rounded"
+            className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
           >
-            Logout
+            <LogOut size={18} />
+            <span className="font-medium">Logout</span>
           </button>
         </div>
       </aside>
 
-      {/* Main */}
-      <main className="flex-1 p-6 overflow-auto">
-        <Outlet />
+      {/* Main Content */}
+      <main className="flex-1 ml-64">
+        <div className="p-8">
+          <Outlet />
+        </div>
       </main>
     </div>
-  )
-}
+  );
+};
 
-export default Layout
+export default Layout;

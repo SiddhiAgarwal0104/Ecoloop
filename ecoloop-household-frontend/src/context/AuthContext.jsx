@@ -26,9 +26,7 @@ export const AuthProvider = ({ children }) => {
 
       try {
         axios.defaults.headers.common.Authorization = `Bearer ${token}`;
-        const res = await axios.get(
-          'http://localhost:5000/api/auth/me'
-        );
+        const res = await axios.get('http://localhost:5000/api/auth/me');
         setUser(res.data.data.user);
       } catch (err) {
         logout();
@@ -39,6 +37,24 @@ export const AuthProvider = ({ children }) => {
 
     loadUser();
   }, [token]);
+
+  /* =========================
+     Register (with role support)
+  ========================= */
+  const register = async (userData) => {
+    const res = await axios.post(
+      'http://localhost:5000/api/auth/register',
+      userData
+    );
+
+    setUser(res.data.data.user);
+    setToken(res.data.data.token);
+    localStorage.setItem('token', res.data.data.token);
+
+    axios.defaults.headers.common.Authorization = `Bearer ${res.data.data.token}`;
+    
+    return res.data.data;
+  };
 
   /* =========================
      Email + Password Login
@@ -53,31 +69,29 @@ export const AuthProvider = ({ children }) => {
     setToken(res.data.data.token);
     localStorage.setItem('token', res.data.data.token);
 
-    axios.defaults.headers.common.Authorization =
-      `Bearer ${res.data.data.token}`;
+    axios.defaults.headers.common.Authorization = `Bearer ${res.data.data.token}`;
   };
 
   /* =========================
-     Google Login
+     Google Login (with role support)
   ========================= */
-  const googleLogin = async (credential) => {
+  const googleLogin = async (credential, role = 'HOUSEHOLD') => {
     const res = await axios.post(
       'http://localhost:5000/api/auth/google',
-      { credential }
+      { credential, role }
     );
 
     setUser(res.data.data.user);
     setToken(res.data.data.token);
     localStorage.setItem('token', res.data.data.token);
 
-    axios.defaults.headers.common.Authorization =
-      `Bearer ${res.data.data.token}`;
+    axios.defaults.headers.common.Authorization = `Bearer ${res.data.data.token}`;
 
     return res.data.data; // needsProfileCompletion flag
   };
 
   /* =========================
-     ⭐ UPDATE PROFILE (FIX)
+     Update Profile
   ========================= */
   const updateProfile = async (profileData) => {
     const res = await axios.put(
@@ -110,9 +124,10 @@ export const AuthProvider = ({ children }) => {
         user,
         token,
         loading,
+        register,
         login,
         googleLogin,
-        updateProfile, // ✅ VERY IMPORTANT
+        updateProfile,
         logout,
       }}
     >

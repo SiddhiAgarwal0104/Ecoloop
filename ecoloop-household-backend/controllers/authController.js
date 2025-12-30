@@ -5,13 +5,19 @@ const { OAuth2Client } = require('google-auth-library');
 
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
-// ================= REGISTER =================
+// ================= REGISTER (WITH ROLE) =================
 exports.register = async (req, res, next) => {
   try {
-    const { name, email, password, phone } = req.body;
+    const { name, email, password, phone, role } = req.body;
 
     if (!name || !email || !password)
       return next(new AppError('All fields required', 400));
+
+    // Validate role
+    const validRoles = ['HOUSEHOLD', 'NGO', 'RECYCLER'];
+    const userRole = role && validRoles.includes(role.toUpperCase()) 
+      ? role.toUpperCase() 
+      : 'HOUSEHOLD';
 
     const exists = await User.findOne({ email });
     if (exists) return next(new AppError('Email already exists', 400));
@@ -21,17 +27,24 @@ exports.register = async (req, res, next) => {
       email,
       password,
       phone,
-      role: 'HOUSEHOLD',
+      role: userRole,
       locality: 'Not Set',
       address: 'Not Set',
       authProvider: 'local',
+      profileCompleted: false
     });
 
     const token = generateToken(user._id);
 
     res.status(201).json({
       success: true,
-      data: { user, token },
+      data: { 
+        user: {
+          ...user.toObject(),
+          isProfileComplete: user.isProfileComplete
+        }, 
+        token 
+      },
     });
   } catch (err) {
     next(err);
@@ -54,16 +67,25 @@ exports.login = async (req, res, next) => {
 
     const token = generateToken(user._id);
 
-    res.json({ success: true, data: { user, token } });
+    res.json({ 
+      success: true, 
+      data: { 
+        user: {
+          ...user.toObject(),
+          isProfileComplete: user.isProfileComplete
+        }, 
+        token 
+      } 
+    });
   } catch (err) {
     next(err);
   }
 };
 
-// ================= GOOGLE AUTH =================
+// ================= GOOGLE AUTH (WITH ROLE) =================
 exports.googleAuth = async (req, res, next) => {
   try {
-    const { credential } = req.body;
+    const { credential, role } = req.body;
 
     const ticket = await client.verifyIdToken({
       idToken: credential,
@@ -75,15 +97,22 @@ exports.googleAuth = async (req, res, next) => {
     let user = await User.findOne({ email });
 
     if (!user) {
+      // Validate role for new users
+      const validRoles = ['HOUSEHOLD', 'NGO', 'RECYCLER'];
+      const userRole = role && validRoles.includes(role.toUpperCase()) 
+        ? role.toUpperCase() 
+        : 'HOUSEHOLD';
+
       user = await User.create({
         name,
         email,
         googleId: sub,
         profilePicture: picture,
-        role: 'HOUSEHOLD',
+        role: userRole,
         locality: 'Not Set',
         address: 'Not Set',
         authProvider: 'google',
+        profileCompleted: false
       });
     }
 
@@ -92,9 +121,12 @@ exports.googleAuth = async (req, res, next) => {
     res.json({
       success: true,
       data: {
-        user,
+        user: {
+          ...user.toObject(),
+          isProfileComplete: user.isProfileComplete
+        },
         token,
-        needsProfileCompletion: user.locality === 'Not Set',
+        needsProfileCompletion: !user.isProfileComplete,
       },
     });
   } catch (err) {
@@ -105,25 +137,68 @@ exports.googleAuth = async (req, res, next) => {
 // ================= GET ME =================
 exports.getMe = async (req, res) => {
   const user = await User.findById(req.user.id);
-  res.json({ success: true, data: { user } });
+  res.json({ 
+    success: true, 
+    data: { 
+      user: {
+        ...user.toObject(),
+        isProfileComplete: user.isProfileComplete
+      }
+    } 
+  });
 };
 
 // ================= UPDATE PROFILE =================
 exports.updateProfile = async (req, res, next) => {
   try {
-    const { phone, locality, address } = req.body;
+    const { phone, locality, address, latitude, longitude } = req.body;
 
     const user = await User.findById(req.user.id);
+    if (!user) return next(new AppError('User not found', 404));
 
+    // Update basic fields
     if (phone !== undefined) user.phone = phone;
-    if (locality !== undefined) user.locality = locality;
-    if (address !== undefined) user.address = address;
+    if (locality !== undefined && locality.trim()) user.locality = locality.trim();
+    if (address !== undefined && address.trim()) user.address = address.trim();
+    
+    // Update location coordinates
+    const lat = parseFloat(latitude);
+    const lng = parseFloat(longitude);
+    
+    if (!isNaN(lat) && !isNaN(lng)) {
+      user.location = {
+        latitude: lat,
+        longitude: lng
+      };
+    }
+
+    // Check if profile is now complete
+    if (user.role === 'NGO') {
+  user.profileCompleted =
+    user.locality?.trim() &&
+    user.address?.trim() &&
+    user.location &&
+    typeof user.location.latitude === 'number' &&
+    typeof user.location.longitude === 'number';
+}
+else {
+      // HOUSEHOLD needs at least locality and address
+      user.profileCompleted = 
+        user.locality && user.locality !== 'Not Set' &&
+        user.address && user.address !== 'Not Set';
+    }
 
     await user.save();
 
     res.json({
       success: true,
-      data: { user },
+      message: 'Profile updated successfully',
+      data: { 
+        user: {
+          ...user.toObject(),
+          isProfileComplete: user.isProfileComplete
+        }
+      },
     });
   } catch (err) {
     next(err);
