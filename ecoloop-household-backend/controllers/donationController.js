@@ -1,6 +1,7 @@
 const Donation = require('../models/Donation');
 const AppError = require('../utils/appError');
 const { uploadMultipleToCloudinary } = require('../utils/cloudinaryUpload');
+const { updateUserStats } = require('./rewardsController');
 
 // @desc    Create donation (with image upload)
 // @route   POST /api/donations
@@ -59,7 +60,7 @@ exports.createDonation = async (req, res, next) => {
     // UPLOAD IMAGES
     let imageUrls = [];
     if (req.files && req.files.length > 0) {
-      console.log('📄 Starting image upload...');
+      console.log('📤 Starting image upload...');
       console.log('Files:', req.files.map(f => ({
         name: f.originalname,
         size: f.size,
@@ -88,6 +89,11 @@ exports.createDonation = async (req, res, next) => {
         latitude: latitude,
         longitude: longitude,
       },
+    });
+
+    // ✅ UPDATE USER STATS (AWARD POINTS FOR CREATING DONATION)
+    await updateUserStats(req.user.id, 'DONATION_CREATED', {
+      quantity: donation.quantity
     });
 
     console.log('✅ Donation created:', {
@@ -187,7 +193,7 @@ exports.updateDonation = async (req, res, next) => {
 
     // Handle new images
     if (req.files && req.files.length > 0) {
-      console.log('📄 Uploading additional images...');
+      console.log('📤 Uploading additional images...');
       try {
         const newImageUrls = await uploadMultipleToCloudinary(req.files, 'ecoloop/donations');
         updateData.images = [...donation.images, ...newImageUrls];
@@ -232,6 +238,11 @@ exports.deleteDonation = async (req, res, next) => {
     if (donation.status !== 'AVAILABLE') {
       return next(new AppError('Cannot delete donation that has been accepted', 400));
     }
+
+    // ✅ REVERSE USER STATS BEFORE DELETION (DEDUCT POINTS)
+    await updateUserStats(req.user.id, 'DONATION_DELETED', {
+      quantity: donation.quantity
+    });
 
     await donation.deleteOne();
 

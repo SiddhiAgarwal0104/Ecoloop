@@ -1,6 +1,7 @@
 const Recycle = require('../models/Recycle');
 const AppError = require('../utils/appError');
 const { uploadMultipleToCloudinary } = require('../utils/cloudinaryUpload');
+const { updateUserStats } = require('./rewardsController');
 
 // @desc    Create recycle request (with image upload)
 // @route   POST /api/recycle
@@ -55,6 +56,12 @@ exports.createRecycleRequest = async (req, res, next) => {
       },
       status: 'AVAILABLE',
       assignedRecycler: null
+    });
+
+    // ✅ UPDATE USER STATS (AWARD POINTS FOR CREATING RECYCLE REQUEST)
+    await updateUserStats(req.user.id, 'RECYCLE_CREATED', {
+      quantity: recycleRequest.quantity,
+      wasteCategory: recycleRequest.wasteCategory
     });
 
     console.log('✅ Recycle request created:', recycleRequest._id);
@@ -197,6 +204,12 @@ exports.deleteRecycleRequest = async (req, res, next) => {
     if (recycleRequest.status !== 'AVAILABLE') {
       return next(new AppError('Cannot delete recycle request that has been accepted', 400));
     }
+
+    // ✅ REVERSE USER STATS BEFORE DELETION (DEDUCT POINTS)
+    await updateUserStats(req.user.id, 'RECYCLE_DELETED', {
+      quantity: recycleRequest.quantity,
+      wasteCategory: recycleRequest.wasteCategory
+    });
 
     await recycleRequest.deleteOne();
 
