@@ -17,6 +17,8 @@ import Profile from './pages/Profile'
 import NGODashboard from './pages/NGODashboard';
 import NGOAvailableDonations from './pages/NGOAvailableDonations';
 import NGOAcceptedDonations from './pages/NGOAcceptedDonations';
+import Badges from './pages/Badges';
+import Leaderboard from './pages/Leaderboard';
 
 // Role-based redirect component
 const RoleBasedRedirect = () => {
@@ -68,6 +70,8 @@ function App() {
               {/* Common Routes */}
               <Route path="/notifications" element={<Notifications />} />
               <Route path="/profile" element={<Profile />} />
+              <Route path="/badges" element={<Badges />} />
+<Route path="/leaderboard" element={<Leaderboard />} />
             </Route>
           </Route>
 

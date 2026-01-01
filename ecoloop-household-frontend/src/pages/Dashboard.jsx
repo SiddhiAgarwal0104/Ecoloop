@@ -3,6 +3,7 @@ import Layout from '../components/Layout';
 import axios from '../api/axios';
 import { Heart, Recycle, TrendingUp, Package } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import RewardsWidget from '../components/RewardsWidget';
 
 const Dashboard = () => {
   const [dashboardData, setDashboardData] = useState(null);
@@ -39,7 +40,7 @@ const Dashboard = () => {
 
   if (error) {
     return (
-     
+      
         <div className="card bg-red-50 border border-red-200 p-6">
           <p className="text-red-600 font-semibold">Error loading dashboard: {error}</p>
           <button onClick={fetchDashboard} className="btn-primary mt-4">
@@ -103,72 +104,83 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* Recent Items */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Recent Donations */}
-          <div className="card">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold text-eco-dark">Recent Donations</h2>
-              <Link to="/donations" className="text-eco-main font-semibold hover:text-eco-dark">
-                View All
-              </Link>
-            </div>
-            <div className="space-y-4">
-              {dashboardData?.donations?.slice(0, 5).map((donation) => (
-                <div key={donation._id} className="p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-semibold text-gray-800">{donation.itemCategory}</p>
-                      <p className="text-sm text-gray-500">Qty: {donation.quantity}</p>
-                    </div>
-                    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                      donation.status === 'AVAILABLE' ? 'bg-green-100 text-green-700' :
-                      donation.status === 'ACCEPTED' ? 'bg-yellow-100 text-yellow-700' :
-                      donation.status === 'PICKED_UP' ? 'bg-blue-100 text-blue-700' :
-                      'bg-gray-100 text-gray-700'
-                    }`}>
-                      {donation.status}
-                    </span>
-                  </div>
+        {/* Main Grid with Recent Items and Rewards Widget */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+          {/* Left Column - Spans 2 columns on large screens */}
+          <div className="lg:col-span-2">
+            {/* Recent Items */}
+            <div className="grid grid-cols-1 gap-6">
+              {/* Recent Donations */}
+              <div className="card">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-xl font-bold text-eco-dark">Recent Donations</h2>
+                  <Link to="/donations" className="text-eco-main font-semibold hover:text-eco-dark">
+                    View All
+                  </Link>
                 </div>
-              ))}
-              {!dashboardData?.donations?.length && (
-                <p className="text-center text-gray-500 py-8">No donations yet</p>
-              )}
+                <div className="space-y-4">
+                  {dashboardData?.donations?.slice(0, 5).map((donation) => (
+                    <div key={donation._id} className="p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-semibold text-gray-800">{donation.itemCategory}</p>
+                          <p className="text-sm text-gray-500">Qty: {donation.quantity}</p>
+                        </div>
+                        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                          donation.status === 'AVAILABLE' ? 'bg-green-100 text-green-700' :
+                          donation.status === 'ACCEPTED' ? 'bg-yellow-100 text-yellow-700' :
+                          donation.status === 'PICKED_UP' ? 'bg-blue-100 text-blue-700' :
+                          'bg-gray-100 text-gray-700'
+                        }`}>
+                          {donation.status}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                  {!dashboardData?.donations?.length && (
+                    <p className="text-center text-gray-500 py-8">No donations yet</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Recent Recycles */}
+              <div className="card">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-xl font-bold text-eco-dark">Recent Recycles</h2>
+                  <Link to="/recycles" className="text-eco-main font-semibold hover:text-eco-dark">
+                    View All
+                  </Link>
+                </div>
+                <div className="space-y-4">
+                  {dashboardData?.recycles?.slice(0, 5).map((recycle) => (
+                    <div key={recycle._id} className="p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-semibold text-gray-800">{recycle.wasteCategory}</p>
+                          <p className="text-sm text-gray-500">{recycle.quantity} {recycle.unit}</p>
+                        </div>
+                        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                          recycle.status === 'AVAILABLE' ? 'bg-green-100 text-green-700' :
+                          recycle.status === 'ACCEPTED' ? 'bg-yellow-100 text-yellow-700' :
+                          recycle.status === 'PICKED_UP' ? 'bg-blue-100 text-blue-700' :
+                          'bg-gray-100 text-gray-700'
+                        }`}>
+                          {recycle.status}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                  {!dashboardData?.recycles?.length && (
+                    <p className="text-center text-gray-500 py-8">No recycle requests yet</p>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* Recent Recycles */}
-          <div className="card">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold text-eco-dark">Recent Recycles</h2>
-              <Link to="/recycles" className="text-eco-main font-semibold hover:text-eco-dark">
-                View All
-              </Link>
-            </div>
-            <div className="space-y-4">
-              {dashboardData?.recycles?.slice(0, 5).map((recycle) => (
-                <div key={recycle._id} className="p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-semibold text-gray-800">{recycle.wasteCategory}</p>
-                      <p className="text-sm text-gray-500">{recycle.quantity} {recycle.unit}</p>
-                    </div>
-                    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                      recycle.status === 'AVAILABLE' ? 'bg-green-100 text-green-700' :
-                      recycle.status === 'ACCEPTED' ? 'bg-yellow-100 text-yellow-700' :
-                      recycle.status === 'PICKED_UP' ? 'bg-blue-100 text-blue-700' :
-                      'bg-gray-100 text-gray-700'
-                    }`}>
-                      {recycle.status}
-                    </span>
-                  </div>
-                </div>
-              ))}
-              {!dashboardData?.recycles?.length && (
-                <p className="text-center text-gray-500 py-8">No recycle requests yet</p>
-              )}
-            </div>
+          {/* Right Column - Rewards Widget */}
+          <div>
+            <RewardsWidget />
           </div>
         </div>
       </div>

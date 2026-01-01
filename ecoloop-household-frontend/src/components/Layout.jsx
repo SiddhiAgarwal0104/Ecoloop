@@ -11,7 +11,9 @@ import {
   Package,
   Clock,
   CheckCircle,
-  Leaf
+  Leaf,
+  Award,
+  Trophy
 } from 'lucide-react';
 
 const Layout = () => {
@@ -50,6 +52,8 @@ const Layout = () => {
         { path: '/donations/create', icon: PlusCircle, label: 'Create Donation' },
         { path: '/recycles', icon: Recycle, label: 'My Recycles' },
         { path: '/recycles/create', icon: PlusCircle, label: 'Create Recycle' },
+        { path: '/badges', icon: Award, label: 'Badges' },
+        { path: '/leaderboard', icon: Trophy, label: 'Leaderboard' },
         { path: '/notifications', icon: Bell, label: 'Notifications' },
         { path: '/profile', icon: User, label: 'Profile' },
       ];
@@ -82,7 +86,7 @@ const Layout = () => {
           </Link>
         </div>
 
-        <nav className="p-4 space-y-2">
+        <nav className="p-4 space-y-2 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 280px)' }}>
           {navigationItems.map((item) => {
             const Icon = item.icon;
             return (

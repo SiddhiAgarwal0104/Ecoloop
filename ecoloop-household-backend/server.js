@@ -25,6 +25,8 @@ app.use('/api/recycle', require('./routes/recycleRoutes'));
 app.use('/api/dashboard', require('./routes/dashboardRoutes'));
 app.use('/api/notifications', require('./routes/notificationRoutes'));
 app.use('/api/ngo', ngoRoutes);
+app.use('/api/leaderboard', require('./routes/leaderboardRoutes')); // ✅ ADD THIS LINE
+app.use('/api/badges', require('./routes/badgeRoutes')); // ✅ ADD THIS
 
 
 // Health check
