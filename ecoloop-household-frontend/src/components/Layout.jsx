@@ -1,5 +1,6 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import FloatingChatbotButton from './FloatingChatbotButton';
 import { 
   Home, 
   Heart, 
@@ -55,6 +56,7 @@ const Layout = () => {
         { path: '/badges', icon: Award, label: 'Badges' },
         { path: '/leaderboard', icon: Trophy, label: 'Leaderboard' },
         { path: '/notifications', icon: Bell, label: 'Notifications' },
+        { path: '/chat', icon: Leaf, label: 'AI Waste Coach' },
         { path: '/profile', icon: User, label: 'Profile' },
       ];
     }
@@ -134,6 +136,7 @@ const Layout = () => {
         <div className="p-8">
           <Outlet />
         </div>
+        <FloatingChatbotButton />
       </main>
     </div>
   );

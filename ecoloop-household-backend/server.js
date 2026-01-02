@@ -27,6 +27,7 @@ app.use('/api/notifications', require('./routes/notificationRoutes'));
 app.use('/api/ngo', ngoRoutes);
 app.use('/api/leaderboard', require('./routes/leaderboardRoutes')); // ✅ ADD THIS LINE
 app.use('/api/badges', require('./routes/badgeRoutes')); // ✅ ADD THIS
+app.use('/api/chatbot', require('./routes/chatbotRoutes'));
 
 
 // Health check
