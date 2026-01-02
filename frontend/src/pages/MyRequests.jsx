@@ -25,7 +25,9 @@ const MyRequests = () => {
     try {
       setLoading(true);
       const response = await getMyRequests();
-      setRequests(response || []);
+      // Filter out cancelled requests
+      const activeRequests = (response || []).filter(r => r.status !== 'CANCELLED');
+      setRequests(activeRequests);
     } catch (error) {
       toast.error('Failed to fetch your requests');
       console.error(error);
@@ -40,12 +42,16 @@ const MyRequests = () => {
     try {
       setCancelLoading(true);
       await cancelRequest(requestId);
-      toast.success('Request cancelled successfully');
-      fetchRequests();
+      
+      // Immediately remove cancelled request from UI
+      setRequests(prev => prev.filter(r => r._id !== requestId));
       setSelectedRequest(null);
+      
+      toast.success('Request cancelled successfully');
     } catch (error) {
-      toast.error('Failed to cancel request');
-      console.error(error);
+      console.error('Cancel error:', error);
+      const errorMsg = error.response?.data?.message || error.message || 'Failed to cancel request';
+      toast.error(errorMsg);
     } finally {
       setCancelLoading(false);
     }

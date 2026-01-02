@@ -56,9 +56,9 @@ const protect = async (req, res, next) => {
     const token = req.headers.authorization.split(" ")[1];
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    // 🔥 FETCH USER FROM DB
+    // 🔥 FETCH USER FROM DB WITH LOCATION
     const user = await User.findById(decoded.id).select(
-      "_id locality pincode name email"
+      "_id locality pincode name email location city"
     );
 
     if (!user) {
@@ -67,9 +67,10 @@ const protect = async (req, res, next) => {
 
     req.user = {
       id: user._id,
-      city: decoded.city, 
+      city: user.city || decoded.city, 
       locality: user.locality,
       pincode: user.pincode,
+      location: user.location,
     };
 
     next();

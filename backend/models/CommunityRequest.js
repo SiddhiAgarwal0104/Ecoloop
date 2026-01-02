@@ -60,6 +60,16 @@ const communityRequestSchema = new mongoose.Schema(
       required: [true, 'Pincode is required'],
       match: [/^\d{6}$/, 'Please enter a valid 6-digit pincode'],
     },
+    location: {
+      latitude: {
+        type: Number,
+        required: [true, 'Latitude is required'],
+      },
+      longitude: {
+        type: Number,
+        required: [true, 'Longitude is required'],
+      },
+    },
     startDate: {
       type: Date,
       required: [true, 'Start date is required'],
@@ -67,16 +77,6 @@ const communityRequestSchema = new mongoose.Schema(
     endDate: {
       type: Date,
       required: [true, 'End date is required'],
-    },
-    paymentType: {
-      type: String,
-      enum: ['Free', 'Paid'],
-      required: [true, 'Payment type is required'],
-    },
-    amount: {
-      type: Number,
-      default: 0,
-      min: [0, 'Amount cannot be negative'],
     },
     status: {
       type: String,

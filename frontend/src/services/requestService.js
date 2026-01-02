@@ -82,9 +82,12 @@ export const createRequest = async (formData) => {
  */
 export const showInterest = async (requestId) => {
   try {
+    console.log('📝 Showing interest in request:', requestId);
     const response = await api.post(`/community/requests/${requestId}/interest`);
-    return response.data.data || {};
+    console.log('✅ Interest response:', response.data);
+    return response.data.data || response.data;
   } catch (error) {
+    console.error('❌ Show interest error:', error.response?.data || error.message);
     throw error;
   }
 };
@@ -130,9 +133,12 @@ export const markReturned = async (requestId) => {
  */
 export const cancelRequest = async (requestId) => {
   try {
+    console.log('🗑️ Cancelling request:', requestId);
     const response = await api.delete(`/community/requests/${requestId}`);
-    return response.data.data || {};
+    console.log('✅ Cancel response:', response.data);
+    return response.data.data || response.data;
   } catch (error) {
+    console.error('❌ Cancel error:', error.response?.data || error.message);
     throw error;
   }
 };

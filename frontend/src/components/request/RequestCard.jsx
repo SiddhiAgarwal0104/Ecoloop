@@ -1,4 +1,4 @@
-import { MapPin, Calendar, DollarSign, User } from 'lucide-react';
+import { MapPin, Calendar, DollarSign, User, Navigation } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { formatDateRange, getDaysDifference } from '../../utils/dateFormatter';
 
@@ -59,6 +59,13 @@ const RequestCard = ({ request, onInterested }) => {
           {request.locality}, {request.pincode}
         </div>
 
+        {request.distance !== undefined && (
+          <div className="flex gap-2 bg-blue-50 px-2 py-1 rounded text-blue-700 font-semibold">
+            <Navigation size={16} />
+            <span>{request.distance} km away</span>
+          </div>
+        )}
+
         <div className="flex gap-2">
           <Calendar size={16} />
           {formatDateRange(request.startDate, request.endDate)}
@@ -86,7 +93,7 @@ const RequestCard = ({ request, onInterested }) => {
       )}
 
       {request.status === 'NEGOTIATING' && (
-        <button onClick={openChat} className="btn-secondary w-full mt-4">
+        <button onClick={openChat} className="btn-primary w-full mt-4">
           Open Chat
         </button>
       )}

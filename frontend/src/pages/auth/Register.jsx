@@ -250,10 +250,12 @@
 // export default Register;
 
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { Leaf, Mail, Lock, User, Phone, MapPin, Map } from 'lucide-react';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 
 const Register = () => {
   const [formData, setFormData] = useState({
@@ -271,6 +273,8 @@ const Register = () => {
   
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showMap, setShowMap] = useState(false);
+  const [mapInstance, setMapInstance] = useState(null);
   const { register } = useAuth();
   const navigate = useNavigate();
 
@@ -281,10 +285,23 @@ const Register = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    
+    // Validate that latitude and longitude are provided and are valid numbers
+    if (!formData.latitude || !formData.longitude || isNaN(formData.latitude) || isNaN(formData.longitude)) {
+      setError('Please select your location on the map or enter valid latitude and longitude');
+      return;
+    }
+
     setLoading(true);
 
     try {
-      await register(formData);
+      // Convert latitude and longitude to numbers for backend
+      const submitData = {
+        ...formData,
+        latitude: parseFloat(formData.latitude),
+        longitude: parseFloat(formData.longitude),
+      };
+      await register(submitData);
       navigate('/dashboard');
     } catch (err) {
       setError(err.response?.data?.error || 'Registration failed');
@@ -292,6 +309,100 @@ const Register = () => {
       setLoading(false);
     }
   };
+
+  // Initialize map with current location
+  useEffect(() => {
+    if (showMap && !mapInstance) {
+      // Get current location and initialize map
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            const lat = position.coords.latitude;
+            const lng = position.coords.longitude;
+
+            // Initialize map
+            const map = L.map('map-container').setView([lat, lng], 15);
+            
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+              maxZoom: 19,
+              attribution: '© OpenStreetMap contributors'
+            }).addTo(map);
+
+            // Add marker and set coordinates
+            const marker = L.marker([lat, lng], { draggable: true }).addTo(map);
+            
+            // Update coordinates when marker is dragged
+            marker.on('dragend', async () => {
+              const latLng = marker.getLatLng();
+              setFormData(prev => ({
+                ...prev,
+                latitude: latLng.lat.toString(),
+                longitude: latLng.lng.toString()
+              }));
+              
+              // Reverse geocode to get locality
+              await getReverseGeocode(latLng.lat, latLng.lng);
+            });
+
+            // Initial coordinate set
+            setFormData(prev => ({
+              ...prev,
+              latitude: lat.toString(),
+              longitude: lng.toString()
+            }));
+
+            // Get initial locality
+            getReverseGeocode(lat, lng);
+
+            setMapInstance(map);
+          },
+          (err) => {
+            setError('Unable to get your location. Please enable location access.');
+          }
+        );
+      }
+    }
+  }, [showMap]);
+
+  // Reverse geocode coordinates to get locality, city, pincode
+  const getReverseGeocode = async (lat, lng) => {
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`
+      );
+      const data = await response.json();
+      
+      if (data.address) {
+        const { city, town, village, county, postcode, suburb } = data.address;
+        const locality = suburb || town || village || county || 'Unknown';
+        const cityName = city || town || village || 'Unknown';
+        
+        setFormData(prev => ({
+          ...prev,
+          locality: locality.toLowerCase(),
+          city: cityName.toLowerCase(),
+          pincode: postcode || ''
+        }));
+      }
+    } catch (err) {
+      console.error('Reverse geocoding failed:', err);
+    }
+  };
+
+  // Handle map click to place marker
+  useEffect(() => {
+    if (mapInstance) {
+      mapInstance.on('click', (e) => {
+        const { lat, lng } = e.latlng;
+        setFormData(prev => ({
+          ...prev,
+          latitude: lat.toString(),
+          longitude: lng.toString()
+        }));
+        getReverseGeocode(lat, lng);
+      });
+    }
+  }, [mapInstance]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-eco-light to-primary-100 flex items-center justify-center p-4">
@@ -497,6 +608,37 @@ const Register = () => {
               />
             </div>
           </div>
+
+          {/* Location Picker Button */}
+          <button
+            type="button"
+            onClick={() => setShowMap(!showMap)}
+            className="btn-secondary w-full flex items-center justify-center gap-2"
+          >
+            <MapPin size={20} />
+            {showMap ? 'Hide Map' : 'Pick Location on Map'}
+          </button>
+
+          {/* Map Container */}
+          {showMap && (
+            <div className="border rounded-lg overflow-hidden">
+              <div
+                id="map-container"
+                style={{
+                  height: '400px',
+                  width: '100%'
+                }}
+              />
+              <div className="bg-blue-50 p-3 text-sm text-gray-700">
+                <p className="font-semibold mb-1">📍 Location Instructions:</p>
+                <ul className="list-disc list-inside space-y-1">
+                  <li>Click on the map to set your location</li>
+                  <li>Drag the marker to adjust your position</li>
+                  <li>Locality will auto-fill via reverse geocoding</li>
+                </ul>
+              </div>
+            </div>
+          )}
 
           <button
             type="submit"

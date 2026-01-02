@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
-import { X, Upload, Image as ImageIcon } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { X, Upload, Image as ImageIcon, Pin, MapPin, Map } from 'lucide-react';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import { validateRequired, isValidPincode, isValidDateRange } from '../../utils/validators';
 
 const CATEGORIES = [
@@ -16,21 +18,93 @@ const CATEGORIES = [
 ];
 
 const RequestForm = ({ onSubmit, onCancel, loading }) => {
+  const mapRef = useRef(null);
+  const mapInstance = useRef(null);
+  const markerRef = useRef(null);
+  
   const [formData, setFormData] = useState({
     itemName: '',
     category: '',
     description: '',
     locality: '',
     pincode: '',
+    latitude: '',
+    longitude: '',
     startDate: '',
     endDate: '',
-    paymentType: 'Free',
-    amount: 0,
   });
 
   const [images, setImages] = useState([]);
   const [imagePreviews, setImagePreviews] = useState([]);
   const [errors, setErrors] = useState({});
+  const [showMap, setShowMap] = useState(false);
+
+  useEffect(() => {
+    if (showMap && mapRef.current && !mapInstance.current) {
+      if ('geolocation' in navigator) {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            const { latitude, longitude } = position.coords;
+            initializeMap(latitude, longitude);
+          },
+          () => {
+            initializeMap(28.6139, 77.2090);
+          }
+        );
+      }
+    }
+  }, [showMap]);
+
+  const initializeMap = (lat, lng) => {
+    if (mapInstance.current) return;
+
+    mapInstance.current = L.map(mapRef.current).setView([lat, lng], 13);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap contributors',
+      maxZoom: 19,
+    }).addTo(mapInstance.current);
+
+    markerRef.current = L.marker([lat, lng], { draggable: true }).addTo(
+      mapInstance.current
+    );
+
+    markerRef.current.on('dragend', async () => {
+      const { lat: newLat, lng: newLng } = markerRef.current.getLatLng();
+      await getReverseGeocode(newLat, newLng);
+    });
+
+    mapInstance.current.on('click', async (e) => {
+      const { lat: newLat, lng: newLng } = e.latlng;
+      markerRef.current.setLatLng([newLat, newLng]);
+      await getReverseGeocode(newLat, newLng);
+    });
+
+    getReverseGeocode(lat, lng);
+  };
+
+  const getReverseGeocode = async (lat, lng) => {
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`
+      );
+      const data = await response.json();
+
+      const address = data.address || {};
+      const locality = address.suburb || address.city || address.town || '';
+      const pincode = address.postcode || '';
+
+      setFormData((prev) => ({
+        ...prev,
+        locality: locality,
+        pincode: pincode,
+        latitude: parseFloat(lat).toFixed(6),
+        longitude: parseFloat(lng).toFixed(6),
+      }));
+    } catch (error) {
+      console.error('Reverse geocoding failed:', error);
+    }
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -92,11 +166,6 @@ const RequestForm = ({ onSubmit, onCancel, loading }) => {
       if (!isValidDateRange(formData.startDate, formData.endDate)) {
         newErrors.endDate = 'End date must be after start date';
       }
-    }
-
-    // Amount validation for paid requests
-    if (formData.paymentType === 'Paid' && formData.amount <= 0) {
-      newErrors.amount = 'Amount must be greater than 0';
     }
 
     setErrors(newErrors);
@@ -225,6 +294,31 @@ const RequestForm = ({ onSubmit, onCancel, loading }) => {
         )}
       </div>
 
+      {/* Map Section */}
+      <div>
+        <button
+          type="button"
+          onClick={() => setShowMap(!showMap)}
+          className="flex items-center gap-2 text-eco-main hover:text-eco-dark font-semibold mb-3 transition-colors"
+        >
+          <Map size={20} />
+          {showMap ? 'Hide Map' : 'Show Map to Select Location'}
+        </button>
+
+        {showMap && (
+          <div className="mb-4">
+            <div
+              ref={mapRef}
+              className="w-full h-80 rounded-xl border-2 border-eco-main mb-2"
+            />
+            <p className="text-xs text-gray-500 flex items-center gap-1">
+              <Pin size={14} />
+              Click on the map or drag the marker to select location
+            </p>
+          </div>
+        )}
+      </div>
+
       {/* Locality and Pincode */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
@@ -263,6 +357,10 @@ const RequestForm = ({ onSubmit, onCancel, loading }) => {
         </div>
       </div>
 
+      {/* Hidden Fields for Latitude/Longitude */}
+      <input type="hidden" name="latitude" value={formData.latitude} />
+      <input type="hidden" name="longitude" value={formData.longitude} />
+
       {/* Start and End Date */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
@@ -299,58 +397,6 @@ const RequestForm = ({ onSubmit, onCancel, loading }) => {
           )}
         </div>
       </div>
-
-      {/* Payment Type */}
-      <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-2">
-          Payment Type *
-        </label>
-        <div className="flex gap-4">
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="radio"
-              name="paymentType"
-              value="Free"
-              checked={formData.paymentType === 'Free'}
-              onChange={handleChange}
-              className="text-eco-main focus:ring-eco-main"
-            />
-            <span className="text-gray-700">Free</span>
-          </label>
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="radio"
-              name="paymentType"
-              value="Paid"
-              checked={formData.paymentType === 'Paid'}
-              onChange={handleChange}
-              className="text-eco-main focus:ring-eco-main"
-            />
-            <span className="text-gray-700">Paid</span>
-          </label>
-        </div>
-      </div>
-
-      {/* Amount (if Paid) */}
-      {formData.paymentType === 'Paid' && (
-        <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">
-            Amount (₹) *
-          </label>
-          <input
-            type="number"
-            name="amount"
-            value={formData.amount}
-            onChange={handleChange}
-            placeholder="Enter amount"
-            className={`input-field ${errors.amount ? 'border-red-500' : ''}`}
-            min="0"
-          />
-          {errors.amount && (
-            <p className="text-red-500 text-xs mt-1">{errors.amount}</p>
-          )}
-        </div>
-      )}
 
       {/* Action Buttons */}
       <div className="flex gap-4">

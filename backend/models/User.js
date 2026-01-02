@@ -69,6 +69,9 @@ const userSchema = new mongoose.Schema({
   timestamps: true
 });
 
+// Create geospatial index for location-based queries
+userSchema.index({ 'location.latitude': 1, 'location.longitude': 1 });
+
 // Hash password before saving
 userSchema.pre('save', async function(next) {
   if (!this.isModified('password')) {
