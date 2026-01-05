@@ -34,14 +34,17 @@ exports.getMyBadges = async (req, res, next) => {
       .sort({ earnedAt: -1 });
 
     // Separate earned and in-progress
-    const earned = userBadges.filter(ub => ub.isCompleted);
-    const inProgress = userBadges.filter(ub => !ub.isCompleted);
+    const earned = userBadges.filter(ub => ub.isCompleted && ub.badgeId);
+    const inProgress = userBadges.filter(ub => !ub.isCompleted && ub.badgeId);
 
     // Get all available badges
     const allBadges = await Badge.find({ isActive: true });
 
     // Find locked badges (not started)
-    const userBadgeIds = userBadges.map(ub => ub.badgeId._id.toString());
+    const userBadgeIds = userBadges
+      .filter(ub => ub.badgeId)
+      .map(ub => ub.badgeId._id.toString());
+    
     const locked = allBadges.filter(
       badge => !userBadgeIds.includes(badge._id.toString())
     );
@@ -70,6 +73,7 @@ exports.getMyBadges = async (req, res, next) => {
       }
     });
   } catch (error) {
+    console.error('Error in getMyBadges:', error);
     next(error);
   }
 };
@@ -93,11 +97,16 @@ exports.checkAndAwardBadges = async (userId, actionType, actionData = {}) => {
     const newlyEarnedBadges = [];
 
     for (const badge of badges) {
-      // Check if user already has this badge
+      // Check if user already has this badge completed
       const existingBadge = await UserBadge.findOne({ 
         userId, 
         badgeId: badge._id 
       });
+
+      // Skip if already earned
+      if (existingBadge && existingBadge.isCompleted) {
+        continue;
+      }
 
       let currentProgress = 0;
       let shouldAward = false;
@@ -105,9 +114,11 @@ exports.checkAndAwardBadges = async (userId, actionType, actionData = {}) => {
       // Calculate progress based on badge requirement
       switch (badge.requirement.action) {
         case 'DONATION':
+          // Use completed donations only
           currentProgress = userStats.donations.completed;
           break;
         case 'RECYCLE':
+          // Use completed recycles only
           currentProgress = userStats.recycles.completed;
           break;
         case 'CONSECUTIVE_DAYS':
@@ -116,42 +127,49 @@ exports.checkAndAwardBadges = async (userId, actionType, actionData = {}) => {
         case 'TOTAL_IMPACT':
           currentProgress = userStats.impactScore;
           break;
+        case 'TOTAL_ACTIONS':
+          // Total completed actions (donations + recycles)
+          currentProgress = userStats.donations.completed + userStats.recycles.completed;
+          break;
         default:
+          console.log(`⚠️ Unknown badge action type: ${badge.requirement.action}`);
           currentProgress = 0;
       }
 
+      // Check if badge should be awarded
       shouldAward = currentProgress >= badge.requirement.value;
 
       if (existingBadge) {
-        // Update progress if not completed
-        if (!existingBadge.isCompleted && shouldAward) {
-          existingBadge.isCompleted = true;
-          existingBadge.earnedAt = new Date();
+        // Update progress only
+        if (!existingBadge.isCompleted) {
           existingBadge.progress.current = currentProgress;
-          await existingBadge.save();
 
-          // Update user stats
-          userStats.badgesEarned += 1;
-          userStats.totalPoints += badge.points;
-          await userStats.save();
+          // Award badge if requirement met
+          if (shouldAward) {
+            existingBadge.isCompleted = true;
+            existingBadge.earnedAt = new Date();
 
-          newlyEarnedBadges.push(badge);
-          console.log(`✅ Badge earned: ${badge.name}`);
+            // Update user stats
+            userStats.badgesEarned += 1;
+            userStats.totalPoints += badge.points;
+            await userStats.save();
 
-          // Create notification
-          await Notification.create({
-            userId,
-            type: 'SYSTEM',
-            title: '🎉 New Badge Earned!',
-            message: `Congratulations! You've earned the "${badge.name}" badge! +${badge.points} points`
-          });
-        } else if (!existingBadge.isCompleted) {
-          // Update progress
-          existingBadge.progress.current = currentProgress;
+            newlyEarnedBadges.push(badge);
+            console.log(`✅ Badge earned: ${badge.name} (Progress: ${currentProgress}/${badge.requirement.value})`);
+
+            // Create notification
+            await Notification.create({
+              userId,
+              type: 'SYSTEM',
+              title: '🎉 New Badge Earned!',
+              message: `Congratulations! You've earned the "${badge.name}" badge! +${badge.points} points`
+            });
+          }
+
           await existingBadge.save();
         }
       } else {
-        // Create new badge progress
+        // Create new badge progress tracking
         const userBadge = await UserBadge.create({
           userId,
           badgeId: badge._id,
@@ -169,7 +187,7 @@ exports.checkAndAwardBadges = async (userId, actionType, actionData = {}) => {
           await userStats.save();
 
           newlyEarnedBadges.push(badge);
-          console.log(`✅ Badge earned: ${badge.name}`);
+          console.log(`✅ Badge earned: ${badge.name} (Progress: ${currentProgress}/${badge.requirement.value})`);
 
           await Notification.create({
             userId,
@@ -177,6 +195,8 @@ exports.checkAndAwardBadges = async (userId, actionType, actionData = {}) => {
             title: '🎉 New Badge Earned!',
             message: `Congratulations! You've earned the "${badge.name}" badge! +${badge.points} points`
           });
+        } else {
+          console.log(`📊 Badge progress tracked: ${badge.name} (${currentProgress}/${badge.requirement.value})`);
         }
       }
     }

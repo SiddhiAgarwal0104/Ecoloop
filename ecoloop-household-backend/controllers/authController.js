@@ -34,7 +34,7 @@ exports.register = async (req, res, next) => {
       profileCompleted: false
     });
 
-    const token = generateToken(user._id);
+const token = generateToken(user._id, user.role, user.locality);
 
     res.status(201).json({
       success: true,
@@ -65,7 +65,7 @@ exports.login = async (req, res, next) => {
     const ok = await user.comparePassword(password);
     if (!ok) return next(new AppError('Invalid credentials', 401));
 
-    const token = generateToken(user._id);
+    const token = generateToken(user._id, user.role, user.locality);
 
     res.json({ 
       success: true, 
@@ -116,7 +116,7 @@ exports.googleAuth = async (req, res, next) => {
       });
     }
 
-    const token = generateToken(user._id);
+    const token = generateToken(user._id, user.role, user.locality);
 
     res.json({
       success: true,

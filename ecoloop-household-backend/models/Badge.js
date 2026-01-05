@@ -47,7 +47,7 @@ const badgeSchema = new mongoose.Schema({
     },
     action: {
       type: String,
-      enum: ['DONATION', 'RECYCLE', 'CONSECUTIVE_DAYS', 'TOTAL_IMPACT'],
+      enum: ['DONATION', 'RECYCLE', 'CONSECUTIVE_DAYS', 'TOTAL_IMPACT', 'TOTAL_ACTIONS'],
       required: true
     }
   },
