@@ -1,5 +1,5 @@
 const Donation = require('../models/Donation');
-const Notification = require('../models/Notification');
+const Notification = require('../models/HouseholdNotification');
 const AppError = require('../utils/appError');
 
 // ================= CALCULATE DISTANCE (Haversine Formula) =================

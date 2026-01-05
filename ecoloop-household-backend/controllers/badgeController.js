@@ -1,7 +1,7 @@
 const Badge = require('../models/Badge');
 const UserBadge = require('../models/UserBadge');
 const UserStats = require('../models/UserStats');
-const Notification = require('../models/Notification');
+const Notification = require('../models/HouseholdNotification');
 const AppError = require('../utils/appError');
 
 // @desc    Get all available badges

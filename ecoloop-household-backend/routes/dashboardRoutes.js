@@ -2,16 +2,23 @@ const express = require('express');
 const router = express.Router();
 const {
   getHouseholdDashboard,
-  getHouseholdStats
+  getHouseholdStats,
+  getNGODashboard,
+  getRecyclerDashboard
 } = require('../controllers/dashboardController');
 const { protect, restrictTo } = require('../middleware/authMiddleware');
 
-// Apply authentication and role restriction to all routes
+// ============ PROTECTED ROUTES ============
 router.use(protect);
-router.use(restrictTo('HOUSEHOLD'));
 
-// Dashboard routes
-router.get('/household', getHouseholdDashboard);
-router.get('/stats', getHouseholdStats);
+// ============ HOUSEHOLD DASHBOARD ============
+router.get('/household', restrictTo('HOUSEHOLD'), getHouseholdDashboard);
+router.get('/household/stats', restrictTo('HOUSEHOLD'), getHouseholdStats);
+
+// ============ NGO DASHBOARD ============
+router.get('/ngo', restrictTo('NGO'), getNGODashboard);
+
+// ============ RECYCLER DASHBOARD ============
+router.get('/recycler', restrictTo('RECYCLER'), getRecyclerDashboard);
 
 module.exports = router;
