@@ -20,6 +20,24 @@ import NGOAcceptedDonations from './pages/NGOAcceptedDonations';
 import Badges from './pages/Badges';
 import Leaderboard from './pages/Leaderboard';
 import ChatPage from './pages/ChatPage';
+import RequestsFeed from './pages/RequestsFeed';
+import MyRequests from './pages/MyRequests';
+import CreateRequest from './pages/CreateRequest';
+import ActiveLendings from './pages/ActiveLendings';
+
+// Landing Page
+import Landing from './pages/Landing'
+
+// Admin Pages
+import AdminLogin from './pages/AdminLogin'
+import AdminRegister from './pages/AdminRegister'
+import AdminCompleteProfile from './pages/AdminCompleteProfile'
+import AdminDashboard from './pages/AdminDashboard'
+import AdminNGOVerification from './pages/AdminNGOVerification'
+import AdminDonations from './pages/AdminDonations'
+import AdminRecyclers from './pages/AdminRecyclers'
+import AdminLeaderboard from './pages/AdminLeaderboard'
+import AdminReports from './pages/AdminReports'
 
 // Role-based redirect component
 const RoleBasedRedirect = () => {
@@ -41,9 +59,23 @@ function App() {
     <AuthProvider>
       <Router>
         <Routes>
+          {/* Landing Page */}
+          <Route path="/" element={<Landing />} />
+          
           {/* Public Routes */}
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          
+          {/* Admin Routes */}
+          <Route path="/admin/login" element={<AdminLogin />} />
+          <Route path="/admin/register" element={<AdminRegister />} />
+          <Route path="/admin/profile/complete" element={<AdminCompleteProfile />} />
+          <Route path="/admin/dashboard" element={<AdminDashboard />} />
+          <Route path="/admin/ngos" element={<AdminNGOVerification />} />
+          <Route path="/admin/donations" element={<AdminDonations />} />
+          <Route path="/admin/recyclers" element={<AdminRecyclers />} />
+          <Route path="/admin/leaderboard" element={<AdminLeaderboard />} />
+          <Route path="/admin/reports" element={<AdminReports />} />
 
           {/* Profile Completion Route */}
           <Route element={<PrivateRoute />}>
@@ -54,7 +86,7 @@ function App() {
           <Route element={<PrivateRoute />}>
             <Route element={<Layout />}>
               {/* Role-based root redirect */}
-              <Route path="/" element={<RoleBasedRedirect />} />
+              <Route path="/home" element={<RoleBasedRedirect />} />
               
               {/* Household Routes */}
               <Route path="/dashboard" element={<Dashboard />} />
@@ -74,6 +106,12 @@ function App() {
               <Route path="/badges" element={<Badges />} />
               <Route path="/leaderboard" element={<Leaderboard />} />
               <Route path="/chat" element={<ChatPage />} />
+              
+              {/* Community Sharing Routes */}
+              <Route path="/community/requests" element={<RequestsFeed />} />
+              <Route path="/community/my-requests" element={<MyRequests />} />
+              <Route path="/community/create-request" element={<CreateRequest />} />
+              <Route path="/community/active-lendings" element={<ActiveLendings />} />
             </Route>
           </Route>
 

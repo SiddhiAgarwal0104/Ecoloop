@@ -5,14 +5,16 @@ import { useAuth } from '../context/AuthContext';
 import { User, Mail, Phone, MapPin, Edit2, Save, X } from 'lucide-react';
 
 const Profile = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, updateProfile } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     phone: '',
+    city: '',
     locality: '',
+    pincode: '',
     address: '',
   });
   const [error, setError] = useState('');
@@ -24,7 +26,9 @@ const Profile = () => {
         name: user.name || '',
         email: user.email || '',
         phone: user.phone || '',
+        city: user.city || '',
         locality: user.locality || '',
+        pincode: user.pincode || '',
         address: user.address || '',
       });
     }
@@ -41,11 +45,46 @@ const Profile = () => {
     setSuccess('');
 
     try {
-      await axios.patch('/auth/me', formData);
+      // Only send non-empty values
+      const payload = {
+        phone: formData.phone.trim(),
+        city: formData.city.trim(),
+        locality: formData.locality.trim(),
+        pincode: formData.pincode.trim(),
+        address: formData.address.trim(),
+      };
+
+      // Validate that at least city, locality, and pincode are filled
+      if (!payload.city) {
+        setError('City is required');
+        setLoading(false);
+        return;
+      }
+      if (!payload.locality) {
+        setError('Locality is required');
+        setLoading(false);
+        return;
+      }
+      if (!payload.pincode) {
+        setError('Pincode is required');
+        setLoading(false);
+        return;
+      }
+
+      console.log('📝 Submitting profile update:', payload);
+
+      // Use AuthContext's updateProfile which properly updates the user state
+      const updatedUser = await updateProfile(payload);
+      
+      console.log('✅ Profile updated:', updatedUser);
+      console.log('Updated user data:', updatedUser);
+      
       setSuccess('Profile updated successfully');
       setIsEditing(false);
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to update profile');
+      console.error('❌ Update error:', err.response?.data || err.message);
+      const errorMsg = err.response?.data?.error || err.response?.data?.message || err.message || 'Failed to update profile';
+      setError(errorMsg);
     } finally {
       setLoading(false);
     }
@@ -56,7 +95,9 @@ const Profile = () => {
       name: user?.name || '',
       email: user?.email || '',
       phone: user?.phone || '',
+      city: user?.city || '',
       locality: user?.locality || '',
+      pincode: user?.pincode || '',
       address: user?.address || '',
     });
     setIsEditing(false);
@@ -148,6 +189,40 @@ const Profile = () => {
                 </div>
               </div>
 
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    City
+                  </label>
+                  <div className="relative">
+                    <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                    <input
+                      type="text"
+                      name="city"
+                      value={formData.city}
+                      onChange={handleChange}
+                      className="input-field pl-10"
+                      placeholder="e.g., Delhi, Mumbai"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Pincode
+                  </label>
+                  <input
+                    type="text"
+                    name="pincode"
+                    value={formData.pincode}
+                    onChange={handleChange}
+                    className="input-field"
+                    placeholder="e.g., 110034"
+                    maxLength="6"
+                  />
+                </div>
+              </div>
+
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   Locality
@@ -160,6 +235,7 @@ const Profile = () => {
                     value={formData.locality}
                     onChange={handleChange}
                     className="input-field pl-10"
+                    placeholder="e.g., Karol Bagh, Sector 28"
                   />
                 </div>
               </div>
@@ -211,6 +287,18 @@ const Profile = () => {
               <div className="bg-gray-50 p-4 rounded-xl">
                 <p className="text-sm text-gray-600 mb-1">Phone Number</p>
                 <p className="text-lg font-semibold text-gray-800">{user?.phone || 'Not provided'}</p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="bg-gray-50 p-4 rounded-xl">
+                  <p className="text-sm text-gray-600 mb-1">City</p>
+                  <p className="text-lg font-semibold text-gray-800">{user?.city || 'Not provided'}</p>
+                </div>
+
+                <div className="bg-gray-50 p-4 rounded-xl">
+                  <p className="text-sm text-gray-600 mb-1">Pincode</p>
+                  <p className="text-lg font-semibold text-gray-800">{user?.pincode || 'Not provided'}</p>
+                </div>
               </div>
 
               <div className="bg-gray-50 p-4 rounded-xl">

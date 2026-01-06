@@ -12,7 +12,9 @@ const CompleteProfile = () => {
 
   const [formData, setFormData] = useState({
     phone: '',
+    city: '',
     locality: '',
+    pincode: '',
     address: '',
     latitude: null,
     longitude: null,
@@ -50,7 +52,9 @@ const CompleteProfile = () => {
     try {
       const payload = {
         phone: formData.phone,
+        city: formData.city,
         locality: formData.locality,
+        pincode: formData.pincode,
         address: formData.address,
       };
 
@@ -103,12 +107,38 @@ const CompleteProfile = () => {
             </div>
 
             <div>
+              <label className="text-sm font-semibold">City *</label>
+              <input
+                name="city"
+                value={formData.city}
+                onChange={handleChange}
+                required
+                placeholder="e.g., Delhi, Mumbai"
+                className="input-field"
+              />
+            </div>
+
+            <div>
               <label className="text-sm font-semibold">Locality *</label>
               <input
                 name="locality"
                 value={formData.locality}
                 onChange={handleChange}
                 required
+                placeholder="e.g., Sector 28, Karol Bagh"
+                className="input-field"
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-semibold">Pincode *</label>
+              <input
+                name="pincode"
+                value={formData.pincode}
+                onChange={handleChange}
+                required
+                placeholder="e.g., 110034"
+                maxLength="6"
                 className="input-field"
               />
             </div>
@@ -133,16 +163,16 @@ const CompleteProfile = () => {
     </label>
 
     <LocationPicker
-  onLocationSelect={(loc) => {
-    setFormData((prev) => ({
-      ...prev,
-      address: loc.address,
-      locality: loc.locality || loc.address.split(',')[0], // ✅ ADD THIS LINE
-      latitude: loc.latitude,
-      longitude: loc.longitude,
-    }));
-  }}
-/>
+      onLocationSelect={(loc) => {
+        setFormData((prev) => ({
+          ...prev,
+          address: loc.address,
+          locality: loc.locality || loc.address.split(',')[0],
+          latitude: loc.latitude,
+          longitude: loc.longitude,
+        }));
+      }}
+    />
 
 
     {formData.latitude && formData.longitude && (

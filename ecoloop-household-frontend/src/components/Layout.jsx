@@ -14,7 +14,8 @@ import {
   CheckCircle,
   Leaf,
   Award,
-  Trophy
+  Trophy,
+  Share2
 } from 'lucide-react';
 
 const Layout = () => {
@@ -53,6 +54,7 @@ const Layout = () => {
         { path: '/donations/create', icon: PlusCircle, label: 'Create Donation' },
         { path: '/recycles', icon: Recycle, label: 'My Recycles' },
         { path: '/recycles/create', icon: PlusCircle, label: 'Create Recycle' },
+        { path: '/community/requests', icon: Share2, label: 'Community Sharing' },
         { path: '/badges', icon: Award, label: 'Badges' },
         { path: '/leaderboard', icon: Trophy, label: 'Leaderboard' },
         { path: '/notifications', icon: Bell, label: 'Notifications' },
