@@ -151,14 +151,18 @@ exports.getMe = async (req, res) => {
 // ================= UPDATE PROFILE =================
 exports.updateProfile = async (req, res, next) => {
   try {
-    const { phone, locality, address, latitude, longitude } = req.body;
+    const { phone, city, locality, pincode, address, latitude, longitude } = req.body;
+
+    console.log('📝 Update profile request:', { phone, city, locality, pincode, address, latitude, longitude });
 
     const user = await User.findById(req.user.id);
     if (!user) return next(new AppError('User not found', 404));
 
     // Update basic fields
-    if (phone !== undefined) user.phone = phone;
+    if (phone !== undefined && phone.trim()) user.phone = phone.trim();
+    if (city !== undefined && city.trim()) user.city = city.trim();
     if (locality !== undefined && locality.trim()) user.locality = locality.trim();
+    if (pincode !== undefined && pincode.trim()) user.pincode = pincode.trim();
     if (address !== undefined && address.trim()) user.address = address.trim();
     
     // Update location coordinates
@@ -172,23 +176,29 @@ exports.updateProfile = async (req, res, next) => {
       };
     }
 
+    console.log('✏️ Updated user fields:', { city: user.city, locality: user.locality, pincode: user.pincode });
+
     // Check if profile is now complete
     if (user.role === 'NGO') {
-  user.profileCompleted =
-    user.locality?.trim() &&
-    user.address?.trim() &&
-    user.location &&
-    typeof user.location.latitude === 'number' &&
-    typeof user.location.longitude === 'number';
-}
-else {
-      // HOUSEHOLD needs at least locality and address
+      user.profileCompleted =
+        user.city?.trim() &&
+        user.locality?.trim() &&
+        user.address?.trim() &&
+        user.location &&
+        typeof user.location.latitude === 'number' &&
+        typeof user.location.longitude === 'number';
+    } else {
+      // HOUSEHOLD needs city, locality, pincode, and address
       user.profileCompleted = 
+        user.city && user.city !== 'Not Set' &&
         user.locality && user.locality !== 'Not Set' &&
+        user.pincode && user.pincode !== 'Not Set' &&
         user.address && user.address !== 'Not Set';
     }
 
     await user.save();
+
+    console.log('✅ Profile saved:', { city: user.city, locality: user.locality, pincode: user.pincode });
 
     res.json({
       success: true,
@@ -201,6 +211,7 @@ else {
       },
     });
   } catch (err) {
+    console.error('❌ Update profile error:', err);
     next(err);
   }
 };
