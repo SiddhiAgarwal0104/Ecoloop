@@ -6,6 +6,14 @@ const recycleSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
+  userName: {
+    type: String,
+    trim: true
+  },
+  userPhone: {
+    type: String,
+    trim: true
+  },
   wasteCategory: {
     type: String,
     required: [true, 'Waste category is required'],
@@ -57,7 +65,11 @@ const recycleSchema = new mongoose.Schema({
   },
   assignedRecycler: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
+    ref: 'Recycler',
+    default: null
+  },
+  acceptedAt: {
+    type: Date,
     default: null
   }
 }, {

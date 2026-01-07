@@ -1,23 +1,18 @@
-import React from 'react'
-import { Navigate, Outlet } from 'react-router-dom'
-import { useAuth } from '../context/AuthContext'
+import { Navigate } from 'react-router-dom';
+import { useRecyclerAuth } from '../context/RecyclerAuthContext';
 
-const PrivateRoute = () => {
-  const { user, loading } = useAuth()
+const PrivateRoute = ({ children }) => {
+  const { isAuthenticated, loading } = useRecyclerAuth();
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-gray-100">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-gray-300 border-t-blue-600 rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600 font-medium">Loading...</p>
-        </div>
+      <div className="flex items-center justify-center h-screen">
+        <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-eco-main"></div>
       </div>
-    )
+    );
   }
 
-  // ✅ AUTH CHECK
-  return user ? <Outlet /> : <Navigate to="/login" replace />
-}
+  return isAuthenticated ? children : <Navigate to="/login" />;
+};
 
-export default PrivateRoute
+export default PrivateRoute;

@@ -1,139 +1,418 @@
-import { useState, useEffect } from 'react';
-import Layout from '../components/Layout';
+import React, { useState, useEffect } from 'react';
+import { MapPin, Calendar, Package, Eye, ArrowRight, AlertCircle, Navigation, X, Copy } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import axios from '../api/axios';
-import { Plus, Recycle as RecycleIcon } from 'lucide-react';
-import { Link } from 'react-router-dom';
-import { format } from 'date-fns';
+import { useAuth } from '../hooks';
 
+/**
+ * My Recycles Page Component
+ * Display accepted recycling requests
+ */
 const MyRecycles = () => {
-  const [recycles, setRecycles] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState('ALL');
-  const [error, setError] = useState(null);
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const [requests, setRequests] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [filter, setFilter] = useState('all');
+  const [selectedRequest, setSelectedRequest] = useState(null);
 
   useEffect(() => {
-    fetchRecycles();
-  }, []);
+    if (user) {
+      fetchMyRequests();
+    }
+  }, [user]);
 
-  const fetchRecycles = async () => {
+  const fetchMyRequests = async () => {
+    setLoading(true);
+    setError('');
     try {
-      const response = await axios.get('/recycle/my');
-      setRecycles(response.data.data?.recycleRequests || []);
-      setError(null);
-    } catch (error) {
-      console.error('Failed to fetch recycles:', error);
-      setError(error.message || 'Failed to load recycles');
-      setRecycles([]);
+      // Fetch user's accepted recycle requests from integration backend
+      const token = localStorage.getItem('recycler_token');
+      console.log('📡 Fetching accepted recycles with token:', token ? '✅ Present' : '❌ Missing');
+      
+      const response = await axios.get('/integration/recycle/my-requests', {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+      console.log('✅ My accepted recycles fetched:', response.data);
+      setRequests(response.data?.data || []);
+    } catch (err) {
+      console.error('❌ Failed to fetch requests:', err);
+      const errorMsg = err.response?.data?.message || err.response?.data?.error || err.message || 'Failed to load requests';
+      setError(errorMsg);
     } finally {
       setLoading(false);
     }
   };
 
-  const filteredRecycles = recycles.filter((r) =>
-    filter === 'ALL' ? true : r.status === filter
-  );
+  /**
+   * Get filtered requests
+   */
+  const filteredRequests = requests.filter(req => {
+    if (filter === 'accepted') return req.status === 'ACCEPTED';
+    if (filter === 'picked_up') return req.status === 'PICKED_UP';
+    if (filter === 'recycled') return req.status === 'RECYCLED';
+    return true;
+  });
+
+  /**
+   * Get status color
+   */
+  const getStatusColor = (status) => {
+    const colors = {
+      ACCEPTED: 'bg-yellow-100 text-yellow-700',
+      PICKED_UP: 'bg-blue-100 text-blue-700',
+      RECYCLED: 'bg-green-100 text-green-700'
+    };
+    return colors[status] || 'bg-gray-100 text-gray-700';
+  };
 
   if (loading) {
     return (
-      
-        <div className="flex items-center justify-center h-96">
-          <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-eco-main"></div>
+      <div className="flex items-center justify-center h-96">
+        <div className="animate-spin">
+          <div className="w-12 h-12 border-4 border-[#c8e6c9] border-t-eco-main rounded-full"></div>
         </div>
-      
-    );
-  }
-
-  if (error) {
-    return (
-      
-        <div className="card bg-red-50 border border-red-200 p-6">
-          <p className="text-red-600 font-semibold">Error: {error}</p>
-          <button onClick={fetchRecycles} className="btn-primary mt-4">
-            Retry
-          </button>
-        </div>
-      
+      </div>
     );
   }
 
   return (
-   
-      <div className="fade-in">
-        <div className="flex items-center justify-between mb-8">
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="page-title">My Recycle Requests</h1>
+          <p className="text-gray-600 mt-1">Track your accepted waste pickup requests</p>
+        </div>
+        <button
+          onClick={fetchMyRequests}
+          className="btn btn-primary"
+        >
+          Refresh
+        </button>
+      </div>
+
+      {/* Filter Tabs */}
+      <div className="flex gap-2 border-b border-[#c8e6c9] overflow-x-auto bg-white px-6 py-4 rounded-t-2xl">
+        <button
+          onClick={() => setFilter('all')}
+          className={`px-4 py-2 font-medium border-b-2 whitespace-nowrap transition-colors ${
+            filter === 'all'
+              ? 'border-eco-main text-eco-main'
+              : 'border-transparent text-gray-600 hover:text-gray-900'
+          }`}
+        >
+          All ({requests.length})
+        </button>
+        <button
+          onClick={() => setFilter('accepted')}
+          className={`px-4 py-2 font-medium border-b-2 whitespace-nowrap transition-colors ${
+            filter === 'accepted'
+              ? 'border-eco-main text-eco-main'
+              : 'border-transparent text-gray-600 hover:text-gray-900'
+          }`}
+        >
+          Accepted ({requests.filter(r => r.status === 'ACCEPTED').length})
+        </button>
+        <button
+          onClick={() => setFilter('picked_up')}
+          className={`px-4 py-2 font-medium border-b-2 whitespace-nowrap transition-colors ${
+            filter === 'picked_up'
+              ? 'border-eco-main text-eco-main'
+              : 'border-transparent text-gray-600 hover:text-gray-900'
+          }`}
+        >
+          Picked Up ({requests.filter(r => r.status === 'PICKED_UP').length})
+        </button>
+        <button
+          onClick={() => setFilter('recycled')}
+          className={`px-4 py-2 font-medium border-b-2 whitespace-nowrap transition-colors ${
+            filter === 'recycled'
+              ? 'border-eco-main text-eco-main'
+              : 'border-transparent text-gray-600 hover:text-gray-900'
+          }`}
+        >
+          Recycled ({requests.filter(r => r.status === 'RECYCLED').length})
+        </button>
+      </div>
+
+      {/* Error Message */}
+      {error && (
+        <div className="message message-error">
+          <AlertCircle size={20} />
           <div>
-            <h1 className="text-3xl font-bold text-eco-dark mb-2">My Recycle Requests</h1>
-            <p className="text-gray-600">Track all your recycling contributions</p>
-          </div>
-          <Link to="/recycles/create" className="btn-primary flex items-center gap-2">
-            <Plus size={20} />
-            <span>New Recycle</span>
-          </Link>
-        </div>
-
-        {/* Filters */}
-        <div className="card mb-6">
-          <div className="flex flex-wrap gap-4">
-            {['ALL', 'AVAILABLE', 'ACCEPTED', 'PICKED_UP', 'RECYCLED'].map((status) => (
-              <button
-                key={status}
-                onClick={() => setFilter(status)}
-                className={`px-4 py-2 rounded-xl font-semibold transition ${
-                  filter === status
-                    ? 'bg-eco-main text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                {status}
-              </button>
-            ))}
+            <p className="font-semibold">Error loading requests</p>
+            <p className="text-sm mt-1">{error}</p>
+            {error.includes('token') && (
+              <p className="text-sm mt-2">
+                💡 Tip: Please logout and login again to refresh your session.
+              </p>
+            )}
           </div>
         </div>
+      )}
 
-        {/* Recycles Grid */}
-        {filteredRecycles.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredRecycles.map((recycle) => (
-              <div key={recycle._id} className="card hover:shadow-2xl transition">
-                {recycle.images?.[0] && (
-                  <img
-                    src={recycle.images[0]}
-                    alt={recycle.wasteCategory}
-                    className="w-full h-48 object-cover rounded-xl mb-4"
-                  />
-                )}
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-lg font-bold text-eco-dark">{recycle.wasteCategory}</h3>
-                  <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                    recycle.status === 'AVAILABLE' ? 'bg-green-100 text-green-700' :
-                    recycle.status === 'ACCEPTED' ? 'bg-yellow-100 text-yellow-700' :
-                    recycle.status === 'PICKED_UP' ? 'bg-blue-100 text-blue-700' :
-                    'bg-gray-100 text-gray-700'
-                  }`}>
-                    {recycle.status}
-                  </span>
+      {/* Requests Grid */}
+      <div className="grid-responsive-3 gap-6">
+        {filteredRequests.length > 0 ? (
+          filteredRequests.map((request) => (
+            <div key={request._id} className="card">
+              {/* Header */}
+              <div className="flex justify-between items-start gap-2 mb-4">
+                <div>
+                  <h3 className="font-bold text-lg text-eco-dark">{request.wasteCategory}</h3>
+                  <p className="text-sm text-gray-600">{request.wasteType}</p>
                 </div>
-                <div className="space-y-2 text-sm text-gray-600">
-                  <p><strong>Type:</strong> {recycle.wasteType}</p>
-                  <p><strong>Quantity:</strong> {recycle.quantity} {recycle.unit}</p>
-                  <p><strong>Location:</strong> {recycle.pickupLocation.address}</p>
-                  {recycle.assignedRecycler && (
-                    <p><strong>Recycler:</strong> {recycle.assignedRecycler.name}</p>
-                  )}
-                  <p className="text-xs text-gray-500">
-                    {format(new Date(recycle.createdAt), 'MMM dd, yyyy')}
-                  </p>
+                <span className={`badge ${getStatusColor(request.status)}`}>
+                  {request.status}
+                </span>
+              </div>
+
+              {/* Content */}
+              <div className="space-y-3 py-4 border-y border-[#c8e6c9]">
+                {/* Quantity */}
+                <div className="flex items-center gap-3">
+                  <Package className="text-eco-main" size={20} />
+                  <div>
+                    <p className="text-xs text-gray-500">Quantity</p>
+                    <p className="font-semibold text-gray-900">
+                      {request.quantity} {request.unit}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Location */}
+                <div className="flex items-center gap-3">
+                  <MapPin className="text-eco-main" size={20} />
+                  <div>
+                    <p className="text-xs text-gray-500">Location</p>
+                    <p className="font-semibold text-gray-900">
+                      {request.pickupLocation?.address || 'No address'}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Date */}
+                <div className="flex items-center gap-3">
+                  <Calendar className="text-eco-main" size={20} />
+                  <div>
+                    <p className="text-xs text-gray-500">Accepted On</p>
+                    <p className="font-semibold text-gray-900">
+                      {(() => {
+                        const dateStr = request.acceptedAt || request.updatedAt;
+                        if (!dateStr) return 'N/A';
+                        try {
+                          const date = new Date(dateStr);
+                          return isNaN(date.getTime()) ? 'N/A' : date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+                        } catch {
+                          return 'N/A';
+                        }
+                      })()}
+                    </p>
+                  </div>
                 </div>
               </div>
-            ))}
-          </div>
+
+              {/* Footer */}
+              <div className="mt-4 space-y-2">
+                <button 
+                  onClick={() => {
+                    console.log(`🗺️ Navigating to /navigate/${request._id}`);
+                    navigate(`/navigate/${request._id}`);
+                  }}
+                  className="btn btn-success w-full justify-center"
+                >
+                  <Navigation size={18} />
+                  <span>Navigate</span>
+                  <ArrowRight size={18} />
+                </button>
+                <button 
+                  onClick={() => setSelectedRequest(request)}
+                  className="btn btn-secondary w-full justify-center"
+                >
+                  <Eye size={18} />
+                  <span>View Details</span>
+                </button>
+              </div>
+            </div>
+          ))
         ) : (
-          <div className="card text-center py-12">
-            <RecycleIcon size={48} className="mx-auto text-gray-300 mb-4" />
-            <p className="text-gray-500">No recycle requests found</p>
+          <div className="col-span-full empty-state">
+            <Package className="empty-state-icon" size={48} />
+            <p className="empty-state-text">No requests found</p>
+            <p className="text-gray-400 text-sm mt-2">
+              {filter === 'all' 
+                ? 'You haven\'t accepted any waste pickup requests yet.'
+                : `No ${filter.replace('_', ' ')} requests found.`
+              }
+            </p>
           </div>
         )}
       </div>
-    
+
+      {/* Details Modal */}
+      {selectedRequest && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-screen overflow-y-auto">
+            {/* Modal Header */}
+            <div className="sticky top-0 bg-eco-light border-b border-[#c8e6c9] p-6 flex justify-between items-center">
+              <h2 className="text-2xl font-bold text-eco-dark">Request Details</h2>
+              <button
+                onClick={() => setSelectedRequest(null)}
+                className="text-gray-500 hover:text-gray-700 p-2"
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-6 space-y-6">
+              {/* Category & Status */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-xs text-gray-500 uppercase">Waste Category</p>
+                  <p className="text-lg font-bold text-eco-dark">{selectedRequest.wasteCategory}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 uppercase">Status</p>
+                  <p className={`text-lg font-bold ${getStatusColor(selectedRequest.status)}`}>
+                    {selectedRequest.status}
+                  </p>
+                </div>
+              </div>
+
+              {/* Waste Type & Quantity */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-xs text-gray-500 uppercase">Waste Type</p>
+                  <p className="text-lg font-semibold text-gray-900">{selectedRequest.wasteType}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 uppercase">Quantity</p>
+                  <p className="text-lg font-semibold text-gray-900">
+                    {selectedRequest.quantity} {selectedRequest.unit}
+                  </p>
+                </div>
+              </div>
+
+              {/* Location */}
+              <div>
+                <p className="text-xs text-gray-500 uppercase mb-2">Pickup Location</p>
+                <div className="flex gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                  <MapPin className="text-eco-main flex-shrink-0 mt-1" size={20} />
+                  <div>
+                    <p className="font-semibold text-gray-900">{selectedRequest.pickupLocation?.address}</p>
+                    {selectedRequest.pickupLocation?.latitude && selectedRequest.pickupLocation?.longitude && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        📍 {selectedRequest.pickupLocation.latitude.toFixed(4)}, {selectedRequest.pickupLocation.longitude.toFixed(4)}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Dates */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-xs text-gray-500 uppercase">Created</p>
+                  <p className="font-semibold text-gray-900">
+                    {new Date(selectedRequest.createdAt).toLocaleDateString('en-US', { 
+                      year: 'numeric', 
+                      month: 'short', 
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 uppercase">Accepted</p>
+                  <p className="font-semibold text-gray-900">
+                    {selectedRequest.acceptedAt 
+                      ? new Date(selectedRequest.acceptedAt).toLocaleDateString('en-US', { 
+                          year: 'numeric', 
+                          month: 'short', 
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })
+                      : 'N/A'
+                    }
+                  </p>
+                </div>
+              </div>
+
+              {/* Description */}
+              {selectedRequest.description && (
+                <div>
+                  <p className="text-xs text-gray-500 uppercase mb-2">Description</p>
+                  <p className="text-gray-900 bg-gray-50 p-3 rounded-lg border border-gray-200">
+                    {selectedRequest.description}
+                  </p>
+                </div>
+              )}
+
+              {/* Request ID */}
+              <div>
+                <p className="text-xs text-gray-500 uppercase mb-2">Request ID</p>
+                <div className="flex gap-2 items-center p-3 bg-gray-50 rounded-lg border border-gray-200">
+                  <p className="font-mono text-sm text-gray-900 flex-1">{selectedRequest._id}</p>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(selectedRequest._id);
+                      alert('Request ID copied!');
+                    }}
+                    className="text-eco-main hover:text-eco-dark p-2"
+                  >
+                    <Copy size={18} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Images */}
+              {selectedRequest.images && selectedRequest.images.length > 0 && (
+                <div>
+                  <p className="text-xs text-gray-500 uppercase mb-3">Images</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    {selectedRequest.images.map((img, idx) => (
+                      <img 
+                        key={idx}
+                        src={img} 
+                        alt={`Request ${idx + 1}`}
+                        className="w-full h-48 object-cover rounded-lg border border-gray-200"
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="grid grid-cols-2 gap-3 pt-4 border-t border-gray-200">
+                <button
+                  onClick={() => {
+                    setSelectedRequest(null);
+                    navigate(`/navigate/${selectedRequest._id}`);
+                  }}
+                  className="btn btn-success justify-center"
+                >
+                  <Navigation size={18} />
+                  Navigate
+                </button>
+                <button
+                  onClick={() => setSelectedRequest(null)}
+                  className="btn btn-secondary justify-center"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 };
 

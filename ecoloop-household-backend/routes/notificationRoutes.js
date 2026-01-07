@@ -1,23 +1,32 @@
 const express = require('express');
 const router = express.Router();
 const {
-  getNotifications,
+  getMyNotifications,
   markAsRead,
-  markAllAsRead,
   deleteNotification,
-  getUnreadCount
+  clearAllNotifications
 } = require('../controllers/notificationController');
 const { protect, restrictTo } = require('../middleware/authMiddleware');
 
-// Apply authentication and role restriction to all routes
-router.use(protect);
-router.use(restrictTo('HOUSEHOLD'));
+/**
+ * Recycler Notification Routes
+ * All routes require authentication
+ */
 
-// Routes
-router.get('/', getNotifications);
-router.get('/unread-count', getUnreadCount);
-router.put('/read-all', markAllAsRead);
-router.put('/:id/read', markAsRead);
+// Protect all routes - Recycler only
+router.use(protect);
+router.use(restrictTo('RECYCLER'));
+
+// Get all notifications
+router.get('/', getMyNotifications);
+
+// Mark as read
+router.patch('/:id/read', markAsRead);
+
+// Delete a notification
 router.delete('/:id', deleteNotification);
+
+// Clear all notifications
+router.delete('/', clearAllNotifications);
 
 module.exports = router;

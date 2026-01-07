@@ -1,38 +1,46 @@
 const mongoose = require('mongoose');
 
-const notificationSchema = new mongoose.Schema({
-  userId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
-  },
-  message: {
-    type: String,
-    required: [true, 'Notification message is required'],
-    trim: true
-  },
-  type: {
-    type: String,
-    enum: ['DONATION', 'RECYCLE', 'GENERAL'],
-    default: 'GENERAL'
-  },
-  relatedId: {
-    type: mongoose.Schema.Types.ObjectId,
-    refPath: 'relatedModel'
-  },
-  relatedModel: {
-    type: String,
-    enum: ['Donation', 'Recycle']
-  },
-  isRead: {
-    type: Boolean,
-    default: false
-  }
-}, {
-  timestamps: true
-});
+const notificationSchema = new mongoose.Schema(
+  {
+    recyclerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Recycler',
+      required: true
+    },
 
-// Index for faster queries
-notificationSchema.index({ userId: 1, isRead: 1, createdAt: -1 });
+    title: {
+      type: String,
+      required: true
+    },
+
+    message: {
+      type: String,
+      required: true
+    },
+
+    type: {
+      type: String,
+      enum: ['REQUEST_ACCEPTED', 'STATUS_UPDATE', 'NEW_REQUEST', 'SYSTEM'],
+      default: 'SYSTEM'
+    },
+
+    // Optional: store related data
+    data: {
+      recycleId: String,
+      category: String,
+      quantity: Number,
+      unit: String,
+      location: String
+    },
+
+    isRead: {
+      type: Boolean,
+      default: false
+    }
+  },
+  { 
+    timestamps: true 
+  }
+);
 
 module.exports = mongoose.model('Notification', notificationSchema);

@@ -1,140 +1,164 @@
-import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { GoogleLogin } from '@react-oauth/google';
-import { Leaf, Mail, Lock, AlertCircle } from 'lucide-react';
-import { useAuth } from '../../context/AuthContext';
+import React, { useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import { Mail, Lock, Eye, EyeOff } from 'lucide-react';
+import { useAuth } from '../../hooks';
+import { VALIDATION_RULES } from '../../config/constants';
 
+/**
+ * Login Page Component
+ * User authentication with email and password
+ */
 const Login = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-
-  const { login, googleLogin, user } = useAuth();
   const navigate = useNavigate();
+  const { login } = useAuth();
+  const [formData, setFormData] = useState({
+    email: '',
+    password: ''
+  });
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  // ✅ MAIN FIX — redirect AFTER user is set
-  useEffect(() => {
-    if (user) {
-      navigate('/dashboard');
-    }
-  }, [user, navigate]);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  /**
+   * Handle input change
+   */
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
     setError('');
-    setLoading(true);
-    try {
-      await login(email, password);
-    } catch (err) {
-      setError(err.response?.data?.error || 'Login failed');
-    } finally {
-      setLoading(false);
-    }
   };
 
-  const handleGoogleSuccess = async (cred) => {
-    setError('');
+  /**
+   * Validate form inputs
+   */
+  const validateForm = () => {
+    if (!formData.email.trim()) {
+      setError('Email is required');
+      return false;
+    }
+    if (!VALIDATION_RULES.email.pattern.test(formData.email)) {
+      setError('Please enter a valid email address');
+      return false;
+    }
+    if (!formData.password) {
+      setError('Password is required');
+      return false;
+    }
+    return true;
+  };
+
+  /**
+   * Handle form submission
+   */
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (!validateForm()) return;
+
     setLoading(true);
     try {
-      await googleLogin(cred.credential);
-      // ❌ yahan navigate nahi
-    } catch {
-      setError('Google sign-in failed');
+      await login(formData.email, formData.password);
+      navigate('/dashboard');
+    } catch (err) {
+      const errorMsg = err.message || 'Login failed. Please try again.';
+      setError(errorMsg);
+      console.error('❌ Login error:', {
+        message: err.message,
+        response: err.response?.data,
+        status: err.response?.status,
+        fullError: err
+      });
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-eco-light to-primary-100 flex items-center justify-center p-4">
-      <div className="card max-w-md w-full">
+    <div className="min-h-screen bg-gradient-to-br from-eco-dark to-eco-main flex items-center justify-center p-4">
+      <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl p-8">
+        {/* Header */}
         <div className="text-center mb-8">
-          <div className="inline-block bg-eco-main p-3 rounded-2xl mb-4">
-            <Leaf className="text-white" size={40} />
+          <div className="w-12 h-12 bg-eco-main rounded-lg flex items-center justify-center mx-auto mb-4">
+            <span className="text-2xl">♻️</span>
           </div>
-          <h1 className="text-3xl font-bold text-eco-dark mb-2">
-            Welcome Back!
-          </h1>
-          <p className="text-gray-600">
-            Login to your EcoLoop household account
-          </p>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">EcoLoop</h1>
+          <p className="text-gray-600">Recycler Login</p>
         </div>
 
+        {/* Error Message */}
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6 flex gap-3">
-            <AlertCircle className="text-red-600" />
-            <p className="text-red-600 text-sm">{error}</p>
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+            <p className="text-red-600 text-sm font-medium">❌ {error}</p>
           </div>
         )}
 
-        <GoogleLogin
-          onSuccess={handleGoogleSuccess}
-          onError={() => setError('Google sign-in failed')}
-          width="100%"
-        />
-
-        <div className="relative my-6">
-          <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-gray-300" />
-          </div>
-          <div className="relative flex justify-center text-sm">
-            <span className="bg-white px-4 text-gray-500">
-              Or continue with email
-            </span>
-          </div>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Email Input */}
           <div>
-            <label className="block text-sm font-semibold mb-2">
+            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
               Email Address
             </label>
             <div className="relative">
-              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <Mail className="absolute left-3 top-3 text-gray-400" size={20} />
               <input
+                id="email"
                 type="email"
-                className="input-field pl-10"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
+                placeholder="recycler@example.com"
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-eco-main focus:border-transparent outline-none transition"
               />
             </div>
           </div>
 
+          {/* Password Input */}
           <div>
-            <label className="block text-sm font-semibold mb-2">
+            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
               Password
             </label>
             <div className="relative">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <Lock className="absolute left-3 top-3 text-gray-400" size={20} />
               <input
-                type="password"
-                className="input-field pl-10"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
+                id="password"
+                type={showPassword ? 'text' : 'password'}
+                name="password"
+                value={formData.password}
+                onChange={handleChange}
+                placeholder="••••••••"
+                className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-eco-main focus:border-transparent outline-none transition"
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
+              >
+                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+              </button>
             </div>
           </div>
 
+          {/* Submit Button */}
           <button
             type="submit"
             disabled={loading}
-            className="btn-primary w-full"
+            className="w-full bg-eco-main hover:bg-eco-dark disabled:bg-gray-400 text-white font-bold py-2 px-4 rounded-lg transition-colors mt-6"
           >
             {loading ? 'Logging in...' : 'Login'}
           </button>
         </form>
 
-        <div className="mt-6 text-center">
-          <p className="text-gray-600">
-            Don&apos;t have an account?{' '}
-            <Link to="/register" className="text-eco-main font-semibold">
-              Register here
-            </Link>
-          </p>
-        </div>
+        {/* Footer Link */}
+        <p className="text-center text-gray-600 mt-6">
+          Don't have an account?{' '}
+          <Link to="/register" className="text-eco-main hover:text-eco-dark font-bold">
+            Register here
+          </Link>
+        </p>
       </div>
     </div>
   );

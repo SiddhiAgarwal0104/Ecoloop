@@ -1,231 +1,502 @@
-import { useState, useEffect } from 'react';
-import Layout from '../components/Layout';
-import axios from '../api/axios';
-import { useAuth } from '../context/AuthContext';
-import { User, Mail, Phone, MapPin, Edit2, Save, X } from 'lucide-react';
+// import React, { useState, useEffect } from 'react';
+// import { Mail, Phone, MapPin, Edit2, Save, X } from 'lucide-react';
+// import axios from '../api/axios';
+// import { useAuth } from '../hooks';
 
+// /**
+//  * Profile Page Component
+//  * View and edit recycler profile
+//  */
+// const Profile = () => {
+//   const { user, updateUser, refreshUser, loading } = useAuth();
+//   const [isEditing, setIsEditing] = useState(false);
+//   const [stats, setStats] = useState({
+//     totalRequests: 0,
+//     completedRequests: 0,
+//     completionRate: 0
+//   });
+//   const [formData, setFormData] = useState({
+//     name: user?.name || '',
+//     email: user?.email || '',
+//     phone: user?.phone || '',
+//     address: user?.address || '',
+//     bio: user?.bio || ''
+//   });
+
+//   // Update formData when user data changes
+//   useEffect(() => {
+//     if (user) {
+//       setFormData({
+//         name: user.name || '',
+//         email: user.email || '',
+//         phone: user.phone || '',
+//         address: user.address || '',
+//         bio: user.bio || ''
+//       });
+//     }
+//   }, [user]);
+
+//   // Fetch stats and refresh user data on mount
+//   useEffect(() => {
+//     if (user) {
+//       fetchStats();
+      
+//       // Refresh user data from backend in the background (non-blocking)
+//       // Don't await this - just let it happen without blocking the UI
+//       refreshUser()
+//         .catch(err => {
+//           // Silently fail - user data from localStorage is sufficient
+//           console.warn('Could not refresh user data:', err.message);
+//         });
+//     }
+//   }, [user]);
+
+//   const fetchStats = async () => {
+//     try {
+//       const token = localStorage.getItem('recycler_token');
+//       const response = await axios.get('/integration/recycle/stats/all', {
+//         headers: { Authorization: `Bearer ${token}` }
+//       });
+//       console.log('✅ Stats fetched:', response.data?.data);
+//       setStats(response.data?.data || {
+//         totalRequests: 0,
+//         completedRequests: 0,
+//         completionRate: 0
+//       });
+//     } catch (err) {
+//       console.error('❌ Error fetching stats:', err);
+//     }
+//   };
+
+//   /**
+//    * Handle input change
+//    */
+//   const handleChange = (e) => {
+//     const { name, value } = e.target;
+//     setFormData(prev => ({
+//       ...prev,
+//       [name]: value
+//     }));
+//   };
+
+//   /**
+//    * Handle save
+//    */
+//   const handleSave = async () => {
+//     try {
+//       await updateUser(formData);
+//       setIsEditing(false);
+//     } catch (err) {
+//       console.error('❌ Failed to update profile:', err);
+//       alert(err.message || 'Failed to update profile');
+//     }
+//   };
+
+//   /**
+//    * Handle cancel
+//    */
+//   const handleCancel = () => {
+//     setFormData({
+//       name: user?.name || '',
+//       email: user?.email || '',
+//       phone: user?.phone || '',
+//       address: user?.address || '',
+//       bio: user?.bio || ''
+//     });
+//     setIsEditing(false);
+//   };
+
+//   if (!user) {
+//     return <div className="text-center py-8">Loading profile...</div>;
+//   }
+
+//   return (
+//     <div className="space-y-6">
+//       {/* Header */}
+//       <div className="flex justify-between items-center">
+//         <h1 className="text-3xl font-bold text-gray-900">My Profile</h1>
+//         {!isEditing && (
+//           <button
+//             onClick={() => setIsEditing(true)}
+//             className="flex items-center gap-2 px-4 py-2 bg-eco-main text-white rounded-lg hover:bg-eco-dark transition-colors"
+//           >
+//             <Edit2 size={18} />
+//             Edit Profile
+//           </button>
+//         )}
+//       </div>
+
+//       {/* Profile Card */}
+//       <div className="bg-white rounded-lg shadow-lg p-8">
+//         {/* Profile Image Section */}
+//         <div className="flex items-center gap-6 mb-8 pb-8 border-b border-gray-200">
+//           <img
+//             src={user.profileImage || 'https://via.placeholder.com/100'}
+//             alt="Profile"
+//             className="w-24 h-24 rounded-full object-cover"
+//           />
+//           <div>
+//             <h2 className="text-2xl font-bold text-gray-900">
+//               {user.name || 'Complete your profile'}
+//             </h2>
+//             <p className="text-gray-600">{user.email}</p>
+//           </div>
+//         </div>
+
+//         {/* Form Content */}
+//         <div className="space-y-6">
+//           {/* Name */}
+//           <div>
+//             <label className="block text-sm font-medium text-gray-700 mb-2">Full Name</label>
+//             {isEditing ? (
+//               <input
+//                 type="text"
+//                 name="name"
+//                 value={formData.name}
+//                 onChange={handleChange}
+//                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-eco-main focus:border-transparent outline-none transition"
+//               />
+//             ) : (
+//               <p className="text-gray-900 text-lg">{user.name || 'Not provided'}</p>
+//             )}
+//           </div>
+
+//           {/* Email */}
+//           <div>
+//             <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+//               <Mail size={18} />
+//               Email Address
+//             </label>
+//             <p className="text-gray-900 text-lg">{user.email}</p>
+//             <p className="text-xs text-gray-500 mt-1">Email cannot be changed</p>
+//           </div>
+
+//           {/* Phone */}
+//           <div>
+//             <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+//               <Phone size={18} />
+//               Phone Number
+//             </label>
+//             {isEditing ? (
+//               <input
+//                 type="tel"
+//                 name="phone"
+//                 value={formData.phone}
+//                 onChange={handleChange}
+//                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-eco-main focus:border-transparent outline-none transition"
+//               />
+//             ) : (
+//               <p className="text-gray-900 text-lg">{user.phone || 'Not provided'}</p>
+//             )}
+//           </div>
+
+//           {/* Address */}
+//           <div>
+//             <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+//               <MapPin size={18} />
+//               Address
+//             </label>
+//             {isEditing ? (
+//               <input
+//                 type="text"
+//                 name="address"
+//                 value={formData.address}
+//                 onChange={handleChange}
+//                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-eco-main focus:border-transparent outline-none transition"
+//               />
+//             ) : (
+//               <p className="text-gray-900 text-lg">{user.address || 'Not provided'}</p>
+//             )}
+//           </div>
+
+//           {/* Bio */}
+//           <div>
+//             <label className="block text-sm font-medium text-gray-700 mb-2">Bio</label>
+//             {isEditing ? (
+//               <textarea
+//                 name="bio"
+//                 value={formData.bio}
+//                 onChange={handleChange}
+//                 rows="4"
+//                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-eco-main focus:border-transparent outline-none transition"
+//               />
+//             ) : (
+//               <p className="text-gray-900 text-lg">{user.bio || 'No bio provided'}</p>
+//             )}
+//           </div>
+
+//           {/* Stats */}
+//           <div className="grid grid-cols-3 gap-4 pt-6 border-t border-gray-200">
+//             <div className="text-center">
+//               <p className="text-2xl font-bold text-eco-main">{stats.totalRequests}</p>
+//               <p className="text-sm text-gray-600">Total Requests</p>
+//             </div>
+//             <div className="text-center">
+//               <p className="text-2xl font-bold text-green-600">{stats.completedRequests}</p>
+//               <p className="text-sm text-gray-600">Completed</p>
+//             </div>
+//             <div className="text-center">
+//               <p className="text-2xl font-bold text-yellow-600">{stats.completionRate}%</p>
+//               <p className="text-sm text-gray-600">Completion Rate</p>
+//             </div>
+//           </div>
+//         </div>
+
+//         {/* Action Buttons */}
+//         {isEditing && (
+//           <div className="flex gap-4 mt-8 pt-6 border-t border-gray-200">
+//             <button
+//               onClick={handleSave}
+//               disabled={loading}
+//               className="flex-1 bg-eco-main hover:bg-eco-dark disabled:bg-gray-400 text-white font-bold py-2 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
+//             >
+//               <Save size={18} />
+//               {loading ? 'Saving...' : 'Save Changes'}
+//             </button>
+//             <button
+//               onClick={handleCancel}
+//               className="flex-1 border border-gray-300 text-gray-700 hover:bg-gray-50 font-bold py-2 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
+//             >
+//               <X size={18} />
+//               Cancel
+//             </button>
+//           </div>
+//         )}
+//       </div>
+//     </div>
+//   );
+// };
+
+// export default Profile;
+
+
+import React, { useState, useEffect } from 'react';
+import { Mail, Phone, MapPin, Edit2, Save, X } from 'lucide-react';
+import { useAuth } from '../hooks';
+
+/**
+ * Profile Page Component
+ * View and edit recycler profile
+ */
 const Profile = () => {
-  const { user, logout } = useAuth();
+  const { user, updateUser, refreshUser, loading } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
-  const [loading, setLoading] = useState(false);
+
   const [formData, setFormData] = useState({
     name: '',
-    email: '',
     phone: '',
-    locality: '',
     address: '',
+    bio: ''
   });
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
 
+  /**
+   * Sync form data whenever user updates
+   */
   useEffect(() => {
     if (user) {
       setFormData({
         name: user.name || '',
-        email: user.email || '',
         phone: user.phone || '',
-        locality: user.locality || '',
         address: user.address || '',
+        bio: user.bio || ''
       });
     }
   }, [user]);
 
+  /**
+   * Force refresh user once on mount
+   */
+  useEffect(() => {
+    refreshUser().catch(() => {});
+  }, []);
+
+  /**
+   * Handle input change
+   */
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
-    setSuccess('');
-
+  /**
+   * Save profile changes
+   */
+  const handleSave = async () => {
     try {
-      await axios.patch('/auth/me', formData);
-      setSuccess('Profile updated successfully');
+      const fd = new FormData();
+      fd.append('name', formData.name);
+      fd.append('phone', formData.phone);
+      fd.append('address', formData.address);
+      fd.append('bio', formData.bio);
+
+      await updateUser(fd);
+      await refreshUser();
+
       setIsEditing(false);
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to update profile');
-    } finally {
-      setLoading(false);
+      alert(err.message || 'Failed to update profile');
     }
   };
 
+  /**
+   * Cancel editing
+   */
   const handleCancel = () => {
     setFormData({
       name: user?.name || '',
-      email: user?.email || '',
       phone: user?.phone || '',
-      locality: user?.locality || '',
       address: user?.address || '',
+      bio: user?.bio || ''
     });
     setIsEditing(false);
-    setError('');
   };
 
+  if (!user) {
+    return <div className="text-center py-10">Loading profile...</div>;
+  }
+
   return (
-      <div className="fade-in max-w-2xl mx-auto">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-eco-dark mb-2">My Profile</h1>
-          <p className="text-gray-600">Manage your account information</p>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex justify-between items-center">
+        <h1 className="text-3xl font-bold text-gray-900">My Profile</h1>
+        {!isEditing && (
+          <button
+            onClick={() => setIsEditing(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-eco-main text-white rounded-lg hover:bg-eco-dark transition"
+          >
+            <Edit2 size={18} />
+            Edit Profile
+          </button>
+        )}
+      </div>
+
+      {/* Profile Card */}
+      <div className="bg-white rounded-lg shadow-lg p-8">
+        {/* Profile Header */}
+        <div className="flex items-center gap-6 mb-8 pb-8 border-b">
+          <img
+            src={user.profilePicture || 'https://via.placeholder.com/100'}
+            alt="Profile"
+            className="w-24 h-24 rounded-full object-cover"
+          />
+          <div>
+            <h2 className="text-2xl font-bold">
+              {user.name || 'Complete your profile'}
+            </h2>
+            <p className="text-gray-600">{user.email}</p>
+          </div>
         </div>
 
-        <div className="card">
-          {error && (
-            <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6 text-red-600 text-sm">
-              {error}
-            </div>
-          )}
-
-          {success && (
-            <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-6 text-green-600 text-sm">
-              {success}
-            </div>
-          )}
-
-          <div className="flex items-center justify-between mb-8">
-            <h2 className="text-2xl font-bold text-eco-dark">Personal Information</h2>
-            {!isEditing && (
-              <button
-                onClick={() => setIsEditing(true)}
-                className="btn-secondary flex items-center gap-2"
-              >
-                <Edit2 size={20} />
-                <span>Edit Profile</span>
-              </button>
+        {/* Profile Fields */}
+        <div className="space-y-6">
+          {/* Name */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Full Name
+            </label>
+            {isEditing ? (
+              <input
+                type="text"
+                name="name"
+                value={formData.name}
+                onChange={handleChange}
+                className="input"
+              />
+            ) : (
+              <p>{user.name || 'Not provided'}</p>
             )}
           </div>
 
-          {isEditing ? (
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Full Name
-                </label>
-                <div className="relative">
-                  <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-                  <input
-                    type="text"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleChange}
-                    className="input-field pl-10"
-                    required
-                  />
-                </div>
-              </div>
+          {/* Email */}
+          <div>
+            <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-1">
+              <Mail size={16} />
+              Email
+            </label>
+            <p>{user.email}</p>
+            <p className="text-xs text-gray-500">Email cannot be changed</p>
+          </div>
 
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Email Address
-                </label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-                  <input
-                    type="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleChange}
-                    className="input-field pl-10"
-                    disabled
-                  />
-                </div>
-              </div>
+          {/* Phone */}
+          <div>
+            <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-1">
+              <Phone size={16} />
+              Phone
+            </label>
+            {isEditing ? (
+              <input
+                type="tel"
+                name="phone"
+                value={formData.phone}
+                onChange={handleChange}
+                className="input"
+              />
+            ) : (
+              <p>{user.phone || 'Not provided'}</p>
+            )}
+          </div>
 
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Phone Number
-                </label>
-                <div className="relative">
-                  <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-                  <input
-                    type="tel"
-                    name="phone"
-                    value={formData.phone}
-                    onChange={handleChange}
-                    className="input-field pl-10"
-                  />
-                </div>
-              </div>
+          {/* Address */}
+          <div>
+            <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-1">
+              <MapPin size={16} />
+              Address
+            </label>
+            {isEditing ? (
+              <input
+                type="text"
+                name="address"
+                value={formData.address}
+                onChange={handleChange}
+                className="input"
+              />
+            ) : (
+              <p>{user.address || 'Not provided'}</p>
+            )}
+          </div>
 
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Locality
-                </label>
-                <div className="relative">
-                  <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-                  <input
-                    type="text"
-                    name="locality"
-                    value={formData.locality}
-                    onChange={handleChange}
-                    className="input-field pl-10"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Address
-                </label>
-                <input
-                  type="text"
-                  name="address"
-                  value={formData.address}
-                  onChange={handleChange}
-                  className="input-field"
-                />
-              </div>
-
-              <div className="flex gap-4">
-                <button
-                  type="button"
-                  onClick={handleCancel}
-                  className="btn-secondary flex-1 flex items-center justify-center gap-2"
-                >
-                  <X size={20} />
-                  <span>Cancel</span>
-                </button>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="btn-primary flex-1 flex items-center justify-center gap-2"
-                >
-                  <Save size={20} />
-                  <span>{loading ? 'Saving...' : 'Save Changes'}</span>
-                </button>
-              </div>
-            </form>
-          ) : (
-            <div className="space-y-6">
-              <div className="bg-gray-50 p-4 rounded-xl">
-                <p className="text-sm text-gray-600 mb-1">Full Name</p>
-                <p className="text-lg font-semibold text-gray-800">{user?.name}</p>
-              </div>
-
-              <div className="bg-gray-50 p-4 rounded-xl">
-                <p className="text-sm text-gray-600 mb-1">Email Address</p>
-                <p className="text-lg font-semibold text-gray-800">{user?.email}</p>
-              </div>
-
-              <div className="bg-gray-50 p-4 rounded-xl">
-                <p className="text-sm text-gray-600 mb-1">Phone Number</p>
-                <p className="text-lg font-semibold text-gray-800">{user?.phone || 'Not provided'}</p>
-              </div>
-
-              <div className="bg-gray-50 p-4 rounded-xl">
-                <p className="text-sm text-gray-600 mb-1">Locality</p>
-                <p className="text-lg font-semibold text-gray-800">{user?.locality || 'Not provided'}</p>
-              </div>
-
-              <div className="bg-gray-50 p-4 rounded-xl">
-                <p className="text-sm text-gray-600 mb-1">Address</p>
-                <p className="text-lg font-semibold text-gray-800">{user?.address || 'Not provided'}</p>
-              </div>
-            </div>
-          )}
+          {/* Bio */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Bio
+            </label>
+            {isEditing ? (
+              <textarea
+                name="bio"
+                value={formData.bio}
+                onChange={handleChange}
+                rows={4}
+                className="input"
+              />
+            ) : (
+              <p>{user.bio || 'No bio provided'}</p>
+            )}
+          </div>
         </div>
+
+        {/* Action Buttons */}
+        {isEditing && (
+          <div className="flex gap-4 mt-8 pt-6 border-t">
+            <button
+              onClick={handleSave}
+              disabled={loading}
+              className="flex-1 bg-eco-main text-white py-2 rounded-lg hover:bg-eco-dark transition flex items-center justify-center gap-2"
+            >
+              <Save size={18} />
+              {loading ? 'Saving...' : 'Save'}
+            </button>
+            <button
+              onClick={handleCancel}
+              className="flex-1 border py-2 rounded-lg flex items-center justify-center gap-2"
+            >
+              <X size={18} />
+              Cancel
+            </button>
+          </div>
+        )}
       </div>
+    </div>
   );
 };
 

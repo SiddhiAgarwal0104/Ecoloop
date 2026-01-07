@@ -1,284 +1,303 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import Layout from '../components/Layout';
+import React, { useState, useEffect } from 'react';
+import { MapPin, Package, Navigation, Check } from 'lucide-react';
 import axios from '../api/axios';
-import { Package, MapPin, Calendar, Edit, Trash2 } from 'lucide-react';
+import { useRecyclerLocation, useAuth } from '../hooks';
+import { formatNumber, calculateDistance } from '../utils/helpers';
 
-const MyDonations = () => {
-  const navigate = useNavigate();
-  const [donations, setDonations] = useState([]);
+/**
+ * Available Requests Page Component
+ * Browse and accept new recycling requests
+ * Automatically filters by recycler's profile city
+ */
+const AvailableRequests = () => {
+  const { latitude, longitude, getLocation } = useRecyclerLocation();
+  const { user } = useAuth();
+  const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [filter, setFilter] = useState('ALL');
+  const [filter, setFilter] = useState('all'); // all, nearby
+  const [nearbyDistance, setNearbyDistance] = useState(5);
+  const [recyclerCity, setRecyclerCity] = useState('');
+  const [page, setPage] = useState(1);
+
+  // Extract city from recycler's address
+  useEffect(() => {
+    if (user?.address) {
+      // Extract first meaningful part before comma as city
+      const addressParts = user.address.split(',');
+      if (addressParts.length > 0) {
+        const city = addressParts[0].trim();
+        setRecyclerCity(city);
+        console.log(`📍 Recycler city extracted from profile: ${city}`);
+      }
+    }
+  }, [user]);
 
   useEffect(() => {
-    fetchDonations();
-  }, []);
+    // Get user location
+    getLocation();
+    // Fetch available requests
+    if (recyclerCity) {
+      fetchRequests();
+    }
+  }, [recyclerCity]);
 
-  const fetchDonations = async () => {
+  const fetchRequests = async () => {
     try {
       setLoading(true);
       setError(null);
-      console.log('📥 Fetching donations...');
-      
-      const response = await axios.get('/donations/my');
-      console.log('✅ Donations received:', response.data);
-      
-      setDonations(response.data.data || []);
+      // Call recycler backend API for available recycles (filtered by recycler's city)
+      const params = { page, limit: 20 };
+      if (recyclerCity) {
+        params.city = recyclerCity;
+        console.log(`🏙️ Fetching requests for city: ${recyclerCity}`);
+      }
+      const response = await axios.get('/integration/recycle/available', {
+        params
+      });
+      console.log('✅ Available requests:', response.data?.data);
+      setRequests(response.data?.data || []);
     } catch (err) {
-      console.error('❌ Error fetching donations:', err);
-      console.error('Error response:', err.response?.data);
-      setError(err.response?.data?.message || 'Failed to fetch donations');
+      console.error('❌ Failed to fetch requests:', err);
+      setError(err.response?.data?.error || 'Failed to fetch requests');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this donation?')) {
-      return;
+  /**
+   * Filter and sort requests
+   */
+  const filteredRequests = requests.filter(req => {
+    if (filter === 'nearby' && latitude && longitude) {
+      const distance = calculateDistance(
+        latitude,
+        longitude,
+        req.pickupLocation?.latitude || 0,
+        req.pickupLocation?.longitude || 0
+      );
+      return distance <= nearbyDistance;
     }
-
-    try {
-      console.log('🗑️ Deleting donation:', id);
-      await axios.delete(`/donations/${id}`);
-      console.log('✅ Donation deleted');
-      
-      alert('Donation deleted successfully');
-      fetchDonations(); // Refresh the list
-    } catch (err) {
-      console.error('❌ Error deleting donation:', err);
-      alert(err.response?.data?.message || 'Failed to delete donation');
-    }
-  };
-
-  const filteredDonations = donations.filter(donation => {
-    if (filter === 'ALL') return true;
-    return donation.status === filter;
+    return true;
   });
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'AVAILABLE':
-        return 'bg-green-100 text-green-700';
-      case 'ACCEPTED':
-        return 'bg-blue-100 text-blue-700';
-      case 'PICKED_UP':
-        return 'bg-orange-100 text-orange-700';
-      case 'COMPLETED':
-        return 'bg-gray-100 text-gray-700';
-      default:
-        return 'bg-gray-100 text-gray-700';
-    }
+  /**
+   * Sort by distance if showing nearby
+   */
+  const sortedRequests = filter === 'nearby' && latitude && longitude
+    ? filteredRequests.sort((a, b) => {
+        const distA = calculateDistance(
+          latitude,
+          longitude,
+          a.pickupLocation?.latitude || 0,
+          a.pickupLocation?.longitude || 0
+        );
+        const distB = calculateDistance(
+          latitude,
+          longitude,
+          b.pickupLocation?.latitude || 0,
+          b.pickupLocation?.longitude || 0
+        );
+        return distA - distB;
+      })
+    : filteredRequests;
+
+  /**
+   * Get distance to request
+   */
+  const getDistance = (req) => {
+    if (!latitude || !longitude) return null;
+    return calculateDistance(
+      latitude,
+      longitude,
+      req.pickupLocation?.latitude || 0,
+      req.pickupLocation?.longitude || 0
+    );
   };
 
-  const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
+  /**
+   * Handle accept request
+   */
+  const handleAccept = async (requestId) => {
+    try {
+      console.log('📤 Accepting recycle request:', requestId);
+      // Call API to accept recycle request on recycler backend
+      const response = await axios.post(`/integration/recycle/${requestId}/accept`);
+      console.log('✅ Recycle request accepted:', response.data);
+      
+      // Remove the accepted request from the list
+      setRequests(requests.filter(r => r._id !== requestId));
+      
+      // Show success message
+      alert('✅ Recycle request accepted! Check "My Requests" to view it.');
+    } catch (err) {
+      console.error('❌ Failed to accept recycle request:', err);
+      const errorMsg = err.response?.data?.message || err.message || 'Failed to accept recycle request';
+      alert(`❌ ${errorMsg}`);
+    }
   };
 
   if (loading) {
     return (
-        <div className="flex items-center justify-center min-h-[400px]">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading donations...</p>
-          </div>
+      <div className="flex items-center justify-center h-96">
+        <div className="animate-spin">
+          <div className="w-12 h-12 border-4 border-eco-light border-t-eco-main rounded-full"></div>
         </div>
-    );
-  }
-
-  if (error) {
-    return (
-        <div className="max-w-6xl mx-auto">
-          <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
-            <p className="text-red-700 mb-4">{error}</p>
-            <button
-              onClick={fetchDonations}
-              className="btn-primary"
-            >
-              Try Again
-            </button>
-          </div>
-        </div>
+      </div>
     );
   }
 
   return (
-      <div className="fade-in max-w-6xl mx-auto">
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-green-700 mb-2">My Donations</h1>
-            <p className="text-gray-600">Track all your donation contributions</p>
-          </div>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex justify-between items-center">
+        <h1 className="text-3xl font-bold text-gray-900">Available Requests</h1>
+        <button
+          onClick={fetchRequests}
+          className="px-4 py-2 bg-eco-main text-white rounded-lg hover:bg-eco-dark transition-colors"
+        >
+          Refresh
+        </button>
+      </div>
+
+      {/* Filter Section */}
+      <div className="bg-white rounded-lg shadow p-4 space-y-4">
+        <div className="flex gap-4 flex-wrap">
           <button
-            onClick={() => navigate('/create-donation')}
-            className="btn-primary"
+            onClick={() => setFilter('all')}
+            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+              filter === 'all'
+                ? 'bg-eco-main text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
           >
-            + New Donation
+            All Requests ({requests.length})
+            {recyclerCity && <span className="text-xs ml-2">({recyclerCity})</span>}
+          </button>
+          <button
+            onClick={() => setFilter('nearby')}
+            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+              filter === 'nearby'
+                ? 'bg-eco-main text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            Nearby Requests ({filteredRequests.length})
           </button>
         </div>
 
-        {/* Filter Tabs */}
-        <div className="card mb-6">
-          <div className="flex flex-wrap gap-2">
-            {['ALL', 'AVAILABLE', 'ACCEPTED', 'PICKED_UP', 'COMPLETED'].map((status) => (
-              <button
-                key={status}
-                onClick={() => setFilter(status)}
-                className={`px-4 py-2 rounded-lg font-semibold transition-colors ${
-                  filter === status
-                    ? 'bg-green-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                {status.replace('_', ' ')}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Donations List */}
-        {filteredDonations.length === 0 ? (
-          <div className="card text-center py-12">
-            <Package className="mx-auto text-gray-400 mb-4" size={64} />
-            <h3 className="text-xl font-semibold text-gray-700 mb-2">No donations found</h3>
-            <p className="text-gray-600 mb-6">
-              {filter === 'ALL' 
-                ? "You haven't created any donations yet"
-                : `No donations with status: ${filter.replace('_', ' ')}`
-              }
-            </p>
-            {filter === 'ALL' && (
-              <button
-                onClick={() => navigate('/create-donation')}
-                className="btn-primary"
-              >
-                Create Your First Donation
-              </button>
-            )}
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredDonations.map((donation) => (
-              <div key={donation._id} className="card hover:shadow-lg transition-shadow">
-                {/* Image */}
-                {donation.images && donation.images.length > 0 && donation.images[0] ? (
-                  <img
-                    src={donation.images[0]}
-                    alt={donation.itemCategory}
-                    className="w-full h-48 object-cover rounded-t-xl mb-4"
-                    onError={(e) => {
-                      console.error('Image failed to load:', donation.images[0]);
-                      e.target.style.display = 'none';
-                    }}
-                  />
-                ) : (
-                  <div className="w-full h-48 bg-gray-200 rounded-t-xl mb-4 flex items-center justify-center">
-                    <Package className="text-gray-400" size={48} />
-                  </div>
-                )}
-
-                {/* Content */}
-                <div className="p-4">
-                  <div className="flex justify-between items-start mb-3">
-                    <h3 className="text-xl font-bold text-gray-800">
-                      {donation.itemCategory}
-                    </h3>
-                    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(donation.status)}`}>
-                      {donation.status}
-                    </span>
-                  </div>
-
-                  <div className="space-y-2 mb-4">
-                    <div className="flex items-center text-sm text-gray-600">
-                      <strong className="mr-2">Condition:</strong>
-                      {donation.condition.replace('_', ' ')}
-                    </div>
-                    <div className="flex items-center text-sm text-gray-600">
-                      <strong className="mr-2">Quantity:</strong>
-                      {donation.quantity}
-                    </div>
-                    {donation.description && (
-                      <p className="text-sm text-gray-600 line-clamp-2">
-                        {donation.description}
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="flex items-start text-sm text-gray-600 mb-3">
-                    <MapPin size={16} className="mr-2 mt-0.5 flex-shrink-0" />
-                    <span className="line-clamp-2">{donation.pickupLocation.address}</span>
-                  </div>
-
-                  <div className="flex items-center text-sm text-gray-500 mb-4">
-                    <Calendar size={16} className="mr-2" />
-                    {formatDate(donation.createdAt)}
-                  </div>
-
-                  {/* Actions */}
-                  {donation.status === 'AVAILABLE' && (
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => navigate(`/donations/${donation._id}/edit`)}
-                        className="flex-1 btn-secondary flex items-center justify-center gap-2"
-                      >
-                        <Edit size={16} />
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDelete(donation._id)}
-                        className="flex-1 bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition-colors flex items-center justify-center gap-2"
-                      >
-                        <Trash2 size={16} />
-                        Delete
-                      </button>
-                    </div>
-                  )}
-
-                  {donation.status !== 'AVAILABLE' && (
-                    <button
-                      onClick={() => navigate(`/donations/${donation._id}`)}
-                      className="w-full btn-primary"
-                    >
-                      View Details
-                    </button>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Summary */}
-        {donations.length > 0 && (
-          <div className="card mt-8 bg-green-50">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Total Donations</p>
-                <p className="text-3xl font-bold text-green-700">{donations.length}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Available</p>
-                <p className="text-3xl font-bold text-green-700">
-                  {donations.filter(d => d.status === 'AVAILABLE').length}
-                </p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Completed</p>
-                <p className="text-3xl font-bold text-green-700">
-                  {donations.filter(d => d.status === 'COMPLETED').length}
-                </p>
-              </div>
-            </div>
+        {/* Nearby Filter Controls */}
+        {filter === 'nearby' && (
+          <div className="flex items-center gap-4">
+            <label className="text-sm font-medium text-gray-700">Distance Radius:</label>
+            <input
+              type="range"
+              min="1"
+              max="50"
+              value={nearbyDistance}
+              onChange={(e) => setNearbyDistance(parseInt(e.target.value))}
+              className="flex-1 max-w-xs"
+            />
+            <span className="text-sm font-semibold text-eco-main">{nearbyDistance} km</span>
           </div>
         )}
       </div>
+
+      {/* Error Message */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+          <p className="text-red-600 font-semibold">❌ {error}</p>
+          <button 
+            onClick={fetchRequests}
+            className="mt-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
+      {/* Requests Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {sortedRequests.length > 0 ? (
+          sortedRequests.map((request) => {
+            const distance = getDistance(request);
+            return (
+              <div key={request._id} className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow overflow-hidden">
+                {/* Header */}
+                <div className="p-4 bg-gradient-to-r from-eco-main to-eco-dark text-white">
+                  <div className="flex justify-between items-start gap-2 mb-2">
+                    <h3 className="font-bold text-lg">{request.wasteCategory}</h3>
+                    <span className="bg-white/20 px-2 py-1 rounded text-xs font-medium">
+                      New
+                    </span>
+                  </div>
+                  <p className="text-sm opacity-90">{request.wasteType} Waste</p>
+                </div>
+
+                {/* Content */}
+                <div className="p-4 space-y-3">
+                  {/* Quantity */}
+                  <div className="flex items-center gap-3">
+                    <Package className="text-eco-main" size={20} />
+                    <div>
+                      <p className="text-xs text-gray-500">Quantity</p>
+                      <p className="font-semibold text-gray-900">
+                        {formatNumber(request.quantity)} {request.unit}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Location */}
+                  <div className="flex items-center gap-3">
+                    <MapPin className="text-eco-main" size={20} />
+                    <div>
+                      <p className="text-xs text-gray-500">Pickup Address</p>
+                      <p className="font-semibold text-gray-900 text-sm">
+                        {request.pickupLocation?.address || 'Address not available'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Distance */}
+                  {distance && (
+                    <div className="flex items-center gap-3 bg-eco-light/30 p-2 rounded">
+                      <Navigation className="text-eco-main" size={20} />
+                      <div>
+                        <p className="text-xs text-gray-600">Distance</p>
+                        <p className="font-semibold text-eco-main">
+                          {formatNumber(distance)} km away
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Footer */}
+                <div className="p-4 bg-gray-50 border-t border-gray-200">
+                  <button
+                    onClick={() => handleAccept(request._id)}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-eco-main text-white rounded-lg hover:bg-eco-dark transition-colors font-medium"
+                  >
+                    <Check size={18} />
+                    Accept Request
+                  </button>
+                </div>
+              </div>
+            );
+          })
+        ) : (
+          <div className="col-span-full text-center py-12">
+            <Package className="text-gray-300 mx-auto mb-3" size={48} />
+            <p className="text-gray-500">
+              {filter === 'nearby'
+                ? `No requests within ${nearbyDistance} km`
+                : 'No available requests at the moment'}
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
   );
 };
 
-export default MyDonations;
+export default AvailableRequests;
