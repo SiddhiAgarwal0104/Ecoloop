@@ -28,8 +28,29 @@ const userSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['HOUSEHOLD', 'NGO', 'RECYCLER'],
+    enum: ['HOUSEHOLD', 'NGO', 'RECYCLER', 'ADMIN'],
     default: 'HOUSEHOLD'
+  },
+  isVerified: {
+    type: Boolean,
+    default: function() {
+      // NGOs are unverified by default, others are verified
+      return this.role !== 'NGO';
+    }
+  },
+  verificationRejectionReason: {
+    type: String,
+    default: null
+  },
+  verificationRequestedAt: {
+    type: Date
+  },
+  verificationApprovedAt: {
+    type: Date
+  },
+  verificationApprovedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
   },
   locality: {
     type: String,
@@ -74,6 +95,20 @@ const userSchema = new mongoose.Schema({
   profileCompleted: {
     type: Boolean,
     default: false
+  },
+  averageRating: {
+    type: Number,
+    default: 0,
+    min: 0,
+    max: 5
+  },
+  totalRatings: {
+    type: Number,
+    default: 0
+  },
+  ratingCount: {
+    type: Number,
+    default: 0
   }
 }, {
   timestamps: true

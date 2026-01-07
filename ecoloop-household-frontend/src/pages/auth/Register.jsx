@@ -27,14 +27,22 @@ const Register = () => {
     setLoading(true);
 
     try {
-      await register({
+      const response = await register({
         ...formData,
         locality: 'Not Set',
         address: 'Not Set',
       });
-      navigate('/profile/complete');
+      
+      // If NGO registration, show pending verification message
+      if (formData.role === 'NGO') {
+        setError('');
+        alert('✅ Registration successful! Your NGO is pending admin verification. You will receive an email once approved. You can login once verified.');
+        navigate('/login');
+      } else {
+        navigate('/profile/complete');
+      }
     } catch (err) {
-      setError(err.response?.data?.error || 'Registration failed');
+      setError(err.response?.data?.message || err.response?.data?.error || 'Registration failed');
     } finally {
       setLoading(false);
     }
@@ -47,6 +55,13 @@ const Register = () => {
     try {
       const response = await googleLogin(credentialResponse.credential, formData.role);
       
+      // Check if NGO pending verification
+      if (!response.success && response.data?.isNGOPendingVerification) {
+        alert('✅ Registration successful! Your NGO is pending admin verification. You will receive an email once approved. You can login once verified.');
+        navigate('/login');
+        return;
+      }
+      
       // ✅ Explicit navigation based on response
       if (response.needsProfileCompletion) {
         navigate('/profile/complete');
@@ -58,7 +73,7 @@ const Register = () => {
         navigate('/dashboard');
       }
     } catch (err) {
-      setError(err.response?.data?.error || 'Google sign-in failed');
+      setError(err.response?.data?.message || err.response?.data?.error || 'Google sign-in failed');
     } finally {
       setLoading(false);
     }
@@ -141,6 +156,15 @@ const Register = () => {
             <span className="px-4 bg-white text-gray-500">Or register with email</span>
           </div>
         </div>
+
+        {/* NGO Verification Info */}
+        {formData.role === 'NGO' && (
+          <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-xl">
+            <p className="text-sm text-blue-800">
+              <span className="font-semibold">ℹ️ NGO Verification:</span> After registration, an admin will review your NGO details. You will receive an email once approved. Login will be enabled after verification.
+            </p>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

@@ -31,13 +31,19 @@ exports.register = async (req, res, next) => {
       locality: 'Not Set',
       address: 'Not Set',
       authProvider: 'local',
-      profileCompleted: false
+      profileCompleted: false,
+      // NGOs are not verified by default and need admin approval
+      isVerified: userRole === 'NGO' ? false : true,
+      verificationRequestedAt: userRole === 'NGO' ? new Date() : null
     });
 
     const token = generateToken(user._id);
 
     res.status(201).json({
       success: true,
+      message: userRole === 'NGO' 
+        ? 'Registration successful! Your NGO is pending admin verification. You will be able to login once approved.' 
+        : 'Registration successful!',
       data: { 
         user: {
           ...user.toObject(),
@@ -64,6 +70,11 @@ exports.login = async (req, res, next) => {
 
     const ok = await user.comparePassword(password);
     if (!ok) return next(new AppError('Invalid credentials', 401));
+
+    // Check if NGO is verified
+    if (user.role === 'NGO' && !user.isVerified) {
+      return next(new AppError('Your NGO is pending admin verification. You will receive an email once approved.', 403));
+    }
 
     const token = generateToken(user._id);
 
@@ -95,8 +106,10 @@ exports.googleAuth = async (req, res, next) => {
     const { email, name, picture, sub } = ticket.getPayload();
 
     let user = await User.findOne({ email });
+    let isNewUser = false;
 
     if (!user) {
+      isNewUser = true;
       // Validate role for new users
       const validRoles = ['HOUSEHOLD', 'NGO', 'RECYCLER'];
       const userRole = role && validRoles.includes(role.toUpperCase()) 
@@ -112,7 +125,25 @@ exports.googleAuth = async (req, res, next) => {
         locality: 'Not Set',
         address: 'Not Set',
         authProvider: 'google',
-        profileCompleted: false
+        profileCompleted: false,
+        // NGOs are not verified by default and need admin approval
+        isVerified: userRole === 'NGO' ? false : true,
+        verificationRequestedAt: userRole === 'NGO' ? new Date() : null
+      });
+    }
+
+    // Check if NGO is verified
+    if (user.role === 'NGO' && !user.isVerified) {
+      return res.json({
+        success: false,
+        message: 'Your NGO is pending admin verification. You will receive an email once approved.',
+        data: {
+          user: {
+            ...user.toObject(),
+            isProfileComplete: user.isProfileComplete
+          },
+          isNGOPendingVerification: true
+        }
       });
     }
 
@@ -120,6 +151,9 @@ exports.googleAuth = async (req, res, next) => {
 
     res.json({
       success: true,
+      message: isNewUser && user.role === 'NGO' 
+        ? 'Registration successful! Your NGO is pending admin verification.' 
+        : 'Login successful!',
       data: {
         user: {
           ...user.toObject(),
