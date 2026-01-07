@@ -27,22 +27,26 @@ const Register = () => {
     setLoading(true);
 
     try {
+      console.log('📝 [Register] Submitting registration:', { 
+        role: formData.role,
+        name: formData.name,
+        email: formData.email 
+      });
+
       const response = await register({
         ...formData,
         locality: 'Not Set',
         address: 'Not Set',
       });
       
-      // If NGO registration, show pending verification message
-      if (formData.role === 'NGO') {
-        setError('');
-        alert('✅ Registration successful! Your NGO is pending admin verification. You will receive an email once approved. You can login once verified.');
-        navigate('/login');
-      } else {
-        navigate('/profile/complete');
-      }
+      console.log('✅ [Register] Registration successful:', response);
+      
+      // ALL users (HOUSEHOLD, NGO, RECYCLER) go to profile completion
+      navigate('/profile/complete');
     } catch (err) {
-      setError(err.response?.data?.message || err.response?.data?.error || 'Registration failed');
+      const errorMsg = err.response?.data?.message || err.response?.data?.error || 'Registration failed';
+      console.error('❌ [Register] Registration error:', errorMsg);
+      setError(errorMsg);
     } finally {
       setLoading(false);
     }
@@ -53,19 +57,35 @@ const Register = () => {
     setLoading(true);
 
     try {
+      console.log('🔐 [Google Auth] Processing Google login:', { role: formData.role });
+
       const response = await googleLogin(credentialResponse.credential, formData.role);
       
+      console.log('✅ [Google Auth] Response:', response);
+
       // Check if NGO pending verification
       if (!response.success && response.data?.isNGOPendingVerification) {
-        alert('✅ Registration successful! Your NGO is pending admin verification. You will receive an email once approved. You can login once verified.');
+        alert('✅ Your NGO profile has been submitted! An admin from your city will review and approve it soon. Please login once approved.');
         navigate('/login');
         return;
       }
       
-      // ✅ Explicit navigation based on response
+      // If profile completion needed, go there FIRST
       if (response.needsProfileCompletion) {
+        console.log('🔄 [Google Auth] Redirecting to profile completion');
         navigate('/profile/complete');
-      } else if (response.user.role === 'NGO') {
+        return;
+      }
+      
+      // Profile is complete, check if NGO and verified
+      if (response.user.role === 'NGO' && !response.user.isVerified) {
+        alert('✅ Your NGO profile has been submitted! An admin from your city will review and approve it soon. Please login once approved.');
+        navigate('/login');
+        return;
+      }
+      
+      // ✅ All other cases - redirect based on role
+      if (response.user.role === 'NGO') {
         navigate('/ngo/dashboard');
       } else if (response.user.role === 'RECYCLER') {
         navigate('/recycler/dashboard');
@@ -73,7 +93,9 @@ const Register = () => {
         navigate('/dashboard');
       }
     } catch (err) {
-      setError(err.response?.data?.message || err.response?.data?.error || 'Google sign-in failed');
+      const errorMsg = err.response?.data?.message || err.response?.data?.error || 'Google sign-in failed';
+      console.error('❌ [Google Auth] Error:', errorMsg);
+      setError(errorMsg);
     } finally {
       setLoading(false);
     }

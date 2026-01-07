@@ -119,7 +119,7 @@ exports.createDonation = async (req, res, next) => {
 exports.getMyDonations = async (req, res, next) => {
   try {
     const donations = await Donation.find({ userId: req.user.id })
-      .populate('assignedNGO', 'name email phone')
+      .populate('assignedNGO', '_id name email phone')
       .sort({ createdAt: -1 });
 
     res.status(200).json({
@@ -140,7 +140,7 @@ exports.getDonationById = async (req, res, next) => {
   try {
     const donation = await Donation.findById(req.params.id)
       .populate('userId', 'name email phone')
-      .populate('assignedNGO', 'name email phone');
+      .populate('assignedNGO', '_id name email phone');
 
     if (!donation) {
       return next(new AppError('Donation not found', 404));

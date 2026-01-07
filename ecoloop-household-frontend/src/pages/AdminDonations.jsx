@@ -24,6 +24,14 @@ const AdminDonations = () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('adminToken');
+      
+      console.log('📦 [AdminDonations] Fetching donations:', {
+        page: pagination.page,
+        limit: pagination.limit,
+        status: statusFilter,
+        search
+      });
+
       const response = await axios.get('http://localhost:5000/api/admin/donations', {
         params: {
           page: pagination.page,
@@ -34,10 +42,16 @@ const AdminDonations = () => {
         headers: { Authorization: `Bearer ${token}` }
       });
 
+      console.log('✅ [AdminDonations] Donations received:', {
+        count: response.data.data.length,
+        total: response.data.pagination.total,
+        data: response.data.data
+      });
+
       setDonations(response.data.data);
       setPagination(response.data.pagination);
     } catch (error) {
-      console.error('Error fetching donations:', error);
+      console.error('❌ [AdminDonations] Error fetching donations:', error);
       alert('Failed to fetch donations');
     } finally {
       setLoading(false);

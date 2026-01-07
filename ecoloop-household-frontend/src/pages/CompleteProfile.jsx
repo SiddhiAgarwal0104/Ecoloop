@@ -41,15 +41,32 @@ const CompleteProfile = () => {
     setError('');
 
     // 🔴 NGO strict validation
-   if (!formData.locality.trim()) {
-  setError('Locality is required');
-  return;
-}
-
+    if (!formData.city.trim()) {
+      setError('City is required');
+      return;
+    }
+    if (!formData.locality.trim()) {
+      setError('Locality is required');
+      return;
+    }
+    if (!formData.address.trim()) {
+      setError('Address is required');
+      return;
+    }
+    if (isNGO && (formData.latitude === null || formData.longitude === null)) {
+      setError('Please select your NGO location on the map');
+      return;
+    }
 
     setLoading(true);
 
     try {
+      console.log('📝 [Profile] Submitting profile completion:', {
+        role: user?.role,
+        city: formData.city,
+        locality: formData.locality
+      });
+
       const payload = {
         phone: formData.phone,
         city: formData.city,
@@ -64,15 +81,24 @@ const CompleteProfile = () => {
         payload.longitude = formData.longitude;
       }
 
-      await updateProfile(payload);
+      const response = await updateProfile(payload);
+      
+      console.log('✅ [Profile] Profile completed:', response);
 
-      // 🚀 role based redirect
-      if (isNGO) navigate('/ngo/dashboard');
-      else if (user.role === 'RECYCLER') navigate('/recycler/dashboard');
-      else navigate('/dashboard');
+      // Show success message for NGO
+      if (isNGO) {
+        alert('✅ Profile completed successfully!\n\nYour NGO has been submitted for verification. An admin from your city will review your profile and approve it soon.\n\nYou will be able to login and access donations once approved.');
+        navigate('/login');
+      } else if (user.role === 'RECYCLER') {
+        navigate('/recycler/dashboard');
+      } else {
+        navigate('/dashboard');
+      }
 
     } catch (err) {
-      setError(err.response?.data?.error || 'Profile update failed');
+      const errorMsg = err.response?.data?.message || err.response?.data?.error || 'Profile update failed';
+      console.error('❌ [Profile] Error:', errorMsg);
+      setError(errorMsg);
     } finally {
       setLoading(false);
     }
@@ -82,10 +108,26 @@ const CompleteProfile = () => {
     <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
       <div className="bg-white shadow-xl rounded-xl p-8 w-full max-w-2xl">
 
-        <h1 className="text-3xl font-bold mb-2">Complete Your Profile</h1>
-        <p className="text-gray-600 mb-6">
-          Location is required for pickups and matching
-        </p>
+        {isNGO ? (
+          <>
+            <h1 className="text-3xl font-bold mb-2">Complete Your NGO Profile</h1>
+            <p className="text-gray-600 mb-4">
+              Help us verify your NGO and connect you with donors
+            </p>
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+              <p className="text-blue-700 text-sm">
+                <strong>📍 Important:</strong> After profile completion, an admin from your city will review and approve your NGO. This helps us maintain quality service.
+              </p>
+            </div>
+          </>
+        ) : (
+          <>
+            <h1 className="text-3xl font-bold mb-2">Complete Your Profile</h1>
+            <p className="text-gray-600 mb-6">
+              Location is required for pickups and matching
+            </p>
+          </>
+        )}
 
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-5 flex gap-2">

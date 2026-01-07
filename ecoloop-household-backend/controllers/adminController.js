@@ -362,7 +362,14 @@ exports.getDonationsOverview = async (req, res, next) => {
       return next(new AppError('Admin profile incomplete. Please complete your profile first.', 400));
     }
 
-    const filter = { 'pickupLocation.city': adminCity };
+    console.log('📦 [Donations] Fetching donations for city:', adminCity);
+
+    // Get households in this city
+    const householdsInCity = await User.find({ role: 'HOUSEHOLD', city: adminCity }).select('_id');
+    const householdIds = householdsInCity.map(h => h._id);
+
+    // Build filter
+    const filter = { userId: { $in: householdIds } };
     if (status) filter.status = status;
 
     const searchRegex = new RegExp(search, 'i');
@@ -370,12 +377,18 @@ exports.getDonationsOverview = async (req, res, next) => {
     const donations = await Donation.find(filter)
       .populate('userId', 'name email locality')
       .populate('assignedNGO', 'name locality')
-      .select('itemCategory quantity status createdAt pickupLocation')
+      .select('itemCategory quantity status createdAt pickupLocation userId')
       .skip((page - 1) * limit)
       .limit(parseInt(limit))
       .sort({ createdAt: -1 });
 
     const total = await Donation.countDocuments(filter);
+
+    console.log('✅ [Donations] Found:', {
+      count: donations.length,
+      total: total,
+      city: adminCity
+    });
 
     res.status(200).json({
       success: true,
@@ -388,6 +401,7 @@ exports.getDonationsOverview = async (req, res, next) => {
       }
     });
   } catch (error) {
+    console.error('❌ [Donations] Error:', error);
     next(error);
   }
 };
@@ -514,16 +528,43 @@ exports.getPlatformStats = async (req, res, next) => {
       return next(new AppError('Admin profile incomplete. Please complete your profile first.', 400));
     }
 
+    console.log('📊 [Admin Stats] Fetching stats for city:', adminCity);
+
     const totalHouseholds = await User.countDocuments({ role: 'HOUSEHOLD', city: adminCity });
     const totalNGOs = await User.countDocuments({ role: 'NGO', city: adminCity });
     const verifiedNGOs = await User.countDocuments({ role: 'NGO', isVerified: true, city: adminCity });
     const totalRecyclers = await User.countDocuments({ role: 'RECYCLER', city: adminCity });
 
-    const totalDonations = await Donation.countDocuments({ 'pickupLocation.city': adminCity });
-    const completedDonations = await Donation.countDocuments({ status: 'COMPLETED', 'pickupLocation.city': adminCity });
-    const pendingDonations = await Donation.countDocuments({ status: 'AVAILABLE', 'pickupLocation.city': adminCity });
+    // Get donations from households in this city
+    const householdsInCity = await User.find({ role: 'HOUSEHOLD', city: adminCity }).select('_id');
+    const householdIds = householdsInCity.map(h => h._id);
 
-    const totalRecycleActions = await Recycle.countDocuments({ 'location.city': adminCity });
+    const totalDonations = await Donation.countDocuments({ userId: { $in: householdIds } });
+    const completedDonations = await Donation.countDocuments({ 
+      userId: { $in: householdIds },
+      status: 'COMPLETED' 
+    });
+    const pendingDonations = await Donation.countDocuments({ 
+      userId: { $in: householdIds },
+      status: 'AVAILABLE' 
+    });
+
+    // Get recycles from recyclers/households in this city
+    const usersInCity = await User.find({ 
+      city: adminCity,
+      role: { $in: ['HOUSEHOLD', 'RECYCLER'] }
+    }).select('_id');
+    const userIds = usersInCity.map(u => u._id);
+
+    const totalRecycleActions = await Recycle.countDocuments({ userId: { $in: userIds } });
+
+    console.log('✅ [Admin Stats] Stats calculated:', {
+      city: adminCity,
+      households: totalHouseholds,
+      ngos: totalNGOs,
+      donations: totalDonations,
+      recycles: totalRecycleActions
+    });
 
     res.status(200).json({
       success: true,
@@ -545,6 +586,7 @@ exports.getPlatformStats = async (req, res, next) => {
       }
     });
   } catch (error) {
+    console.error('❌ [Admin Stats] Error:', error);
     next(error);
   }
 };
@@ -554,37 +596,53 @@ exports.getPlatformStats = async (req, res, next) => {
  */
 exports.getGlobalLeaderboard = async (req, res, next) => {
   try {
-    const { page = 1, limit = 20 } = req.query;
+    const { page = 1, limit = 20, sortBy = 'totalPoints' } = req.query;
+
+    const UserStats = require('../models/UserStats');
     
-    // Get admin's city
-    const adminCity = await getAdminCity(req.user._id);
-    if (!adminCity) {
-      return next(new AppError('Admin profile incomplete. Please complete your profile first.', 400));
-    }
+    const validSortFields = ['totalPoints', 'impactScore', 'level', 'badgesEarned'];
+    const sortField = validSortFields.includes(sortBy) ? sortBy : 'totalPoints';
 
-    const users = await User.find({ role: 'HOUSEHOLD', city: adminCity })
-      .select('name email locality city averageRating')
+    const users = await UserStats.find()
+      .populate('userId', 'name email locality city profilePicture')
+      .sort({ [sortField]: -1 })
       .skip((page - 1) * limit)
-      .limit(parseInt(limit))
-      .sort({ averageRating: -1 });
+      .limit(parseInt(limit));
 
-    const total = await User.countDocuments({ role: 'HOUSEHOLD', city: adminCity });
+    const total = await UserStats.countDocuments();
 
-    // Enrich with donation and recycle counts
+    console.log('🏆 [Admin Global Leaderboard] Fetching with sort:', {
+      count: users.length,
+      total: total,
+      sortBy: sortField,
+      userNames: users.map(u => ({ name: u.userId?.name, points: u[sortField] }))
+    });
+
+    // Get actual counts from database
     const leaderboard = await Promise.all(
-      users.map(async (user, index) => {
+      users.map(async (stat, index) => {
         const donationCount = await Donation.countDocuments({
-          userId: user._id,
+          userId: stat.userId._id,
           status: 'COMPLETED'
         });
-        const recycleCount = await Recycle.countDocuments({ userId: user._id });
+        const recycleCount = await Recycle.countDocuments({ userId: stat.userId._id });
 
         return {
           rank: (page - 1) * limit + index + 1,
-          ...user.toObject(),
+          userId: stat.userId._id,
+          name: stat.userId?.name,
+          email: stat.userId?.email,
+          locality: stat.userId?.locality,
+          city: stat.userId?.city,
+          profilePicture: stat.userId?.profilePicture,
+          totalPoints: stat.totalPoints,
+          level: stat.level,
+          impactScore: stat.impactScore,
+          badgesEarned: stat.badgesEarned,
           donations: donationCount,
           recycleActions: recycleCount,
-          totalActions: donationCount + recycleCount
+          totalActions: donationCount + recycleCount,
+          streak: stat.streak?.current || 0
         };
       })
     );
@@ -597,9 +655,11 @@ exports.getGlobalLeaderboard = async (req, res, next) => {
         limit: parseInt(limit),
         total,
         pages: Math.ceil(total / limit)
-      }
+      },
+      sortedBy: sortField
     });
   } catch (error) {
+    console.error('❌ [Admin Global Leaderboard] Error:', error);
     next(error);
   }
 };
@@ -609,45 +669,64 @@ exports.getGlobalLeaderboard = async (req, res, next) => {
  */
 exports.getLocalityLeaderboard = async (req, res, next) => {
   try {
-    const { locality } = req.params;
     const { page = 1, limit = 20 } = req.query;
     
-    // Get admin's city
-    const adminCity = await getAdminCity(req.user._id);
-    if (!adminCity) {
-      return next(new AppError('Admin profile incomplete. Please complete your profile first.', 400));
+    // Get admin's locality (NOT by URL parameter, by admin's own profile)
+    const admin = await User.findById(req.user._id);
+    const adminLocality = admin?.locality;
+
+    if (!adminLocality || adminLocality === 'Not Set') {
+      return next(new AppError('Admin profile incomplete. Please set your locality first.', 400));
     }
 
-    const users = await User.find({
-      role: 'HOUSEHOLD',
-      locality: new RegExp(locality, 'i'),
-      city: adminCity
-    })
-      .select('name email locality averageRating')
-      .skip((page - 1) * limit)
-      .limit(parseInt(limit))
-      .sort({ averageRating: -1 });
+    const UserStats = require('../models/UserStats');
 
-    const total = await User.countDocuments({
-      role: 'HOUSEHOLD',
-      locality: new RegExp(locality, 'i'),
-      city: adminCity
+    console.log('📍 [Admin Locality Leaderboard] Fetching for locality:', adminLocality);
+
+    // Find all users in the same locality
+    const localUsers = await User.find({ locality: adminLocality }).select('_id');
+    const localUserIds = localUsers.map(u => u._id);
+
+    const users = await UserStats.find({ userId: { $in: localUserIds } })
+      .populate('userId', 'name email locality city profilePicture')
+      .sort({ totalPoints: -1 })
+      .skip((page - 1) * limit)
+      .limit(parseInt(limit));
+
+    const total = await UserStats.countDocuments({ userId: { $in: localUserIds } });
+
+    console.log('📍 [Admin Locality Leaderboard] Found users:', {
+      count: users.length,
+      total: total,
+      locality: adminLocality,
+      userNames: users.map(u => ({ name: u.userId?.name, points: u.totalPoints }))
     });
 
+    // Get actual counts from database
     const leaderboard = await Promise.all(
-      users.map(async (user, index) => {
+      users.map(async (stat, index) => {
         const donationCount = await Donation.countDocuments({
-          userId: user._id,
+          userId: stat.userId._id,
           status: 'COMPLETED'
         });
-        const recycleCount = await Recycle.countDocuments({ userId: user._id });
+        const recycleCount = await Recycle.countDocuments({ userId: stat.userId._id });
 
         return {
           rank: (page - 1) * limit + index + 1,
-          ...user.toObject(),
+          userId: stat.userId._id,
+          name: stat.userId?.name,
+          email: stat.userId?.email,
+          locality: stat.userId?.locality,
+          city: stat.userId?.city,
+          profilePicture: stat.userId?.profilePicture,
+          totalPoints: stat.totalPoints,
+          level: stat.level,
+          impactScore: stat.impactScore,
+          badgesEarned: stat.badgesEarned,
           donations: donationCount,
           recycleActions: recycleCount,
-          totalActions: donationCount + recycleCount
+          totalActions: donationCount + recycleCount,
+          streak: stat.streak?.current || 0
         };
       })
     );
@@ -655,7 +734,7 @@ exports.getLocalityLeaderboard = async (req, res, next) => {
     res.status(200).json({
       success: true,
       data: leaderboard,
-      locality,
+      locality: adminLocality,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
@@ -664,6 +743,7 @@ exports.getLocalityLeaderboard = async (req, res, next) => {
       }
     });
   } catch (error) {
+    console.error('❌ [Admin Locality Leaderboard] Error:', error);
     next(error);
   }
 };

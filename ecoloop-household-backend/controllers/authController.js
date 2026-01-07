@@ -32,24 +32,31 @@ exports.register = async (req, res, next) => {
       address: 'Not Set',
       authProvider: 'local',
       profileCompleted: false,
-      // NGOs are not verified by default and need admin approval
-      isVerified: userRole === 'NGO' ? false : true,
-      verificationRequestedAt: userRole === 'NGO' ? new Date() : null
+      // ALL users including NGOs are unverified until they complete profile
+      // NGOs will be marked for verification AFTER profile completion
+      isVerified: false,
+      verificationRequestedAt: null
     });
 
     const token = generateToken(user._id);
 
+    console.log('✅ [Auth] User registered:', {
+      id: user._id,
+      role: user.role,
+      email: user.email,
+      needsProfileCompletion: true
+    });
+
     res.status(201).json({
       success: true,
-      message: userRole === 'NGO' 
-        ? 'Registration successful! Your NGO is pending admin verification. You will be able to login once approved.' 
-        : 'Registration successful!',
+      message: 'Registration successful! Please complete your profile.',
       data: { 
         user: {
           ...user.toObject(),
           isProfileComplete: user.isProfileComplete
         }, 
-        token 
+        token,
+        needsProfileCompletion: true
       },
     });
   } catch (err) {
@@ -126,21 +133,46 @@ exports.googleAuth = async (req, res, next) => {
         address: 'Not Set',
         authProvider: 'google',
         profileCompleted: false,
-        // NGOs are not verified by default and need admin approval
-        isVerified: userRole === 'NGO' ? false : true,
-        verificationRequestedAt: userRole === 'NGO' ? new Date() : null
+        // ALL users including NGOs are unverified until they complete profile
+        // NGOs will be marked for verification AFTER profile completion
+        isVerified: false,
+        verificationRequestedAt: null
+      });
+      
+      console.log('✅ [Google Auth] New user created:', {
+        id: user._id,
+        role: user.role,
+        email: user.email,
+        needsProfileCompletion: true
       });
     }
 
-    // Check if NGO is verified
+    // Check if profile is completed first
+    if (!user.profileCompleted) {
+      console.log('🔄 [Google Auth] Profile not completed, redirect to profile completion');
+      return res.json({
+        success: true,
+        message: 'Please complete your profile.',
+        data: {
+          user: {
+            ...user.toObject(),
+            isProfileComplete: false
+          },
+          needsProfileCompletion: true
+        }
+      });
+    }
+
+    // Check if NGO is verified (after profile completion)
     if (user.role === 'NGO' && !user.isVerified) {
+      console.log('⏳ [Google Auth] NGO pending verification');
       return res.json({
         success: false,
         message: 'Your NGO is pending admin verification. You will receive an email once approved.',
         data: {
           user: {
             ...user.toObject(),
-            isProfileComplete: user.isProfileComplete
+            isProfileComplete: user.profileCompleted
           },
           isNGOPendingVerification: true
         }
@@ -221,6 +253,18 @@ exports.updateProfile = async (req, res, next) => {
         user.location &&
         typeof user.location.latitude === 'number' &&
         typeof user.location.longitude === 'number';
+      
+      // If NGO profile is completed, mark for verification to city admin
+      if (user.profileCompleted && !user.verificationRequestedAt) {
+        user.isVerified = false;
+        user.verificationRequestedAt = new Date();
+        console.log('📬 [Profile] NGO profile completed - marking for admin verification:', {
+          ngoId: user._id,
+          ngoName: user.name,
+          city: user.city,
+          requestedAt: user.verificationRequestedAt
+        });
+      }
     } else {
       // HOUSEHOLD needs city, locality, pincode, and address
       user.profileCompleted = 
@@ -228,19 +272,33 @@ exports.updateProfile = async (req, res, next) => {
         user.locality && user.locality !== 'Not Set' &&
         user.pincode && user.pincode !== 'Not Set' &&
         user.address && user.address !== 'Not Set';
+      
+      // Non-NGO users are verified once profile is complete
+      if (user.profileCompleted) {
+        user.isVerified = true;
+      }
     }
 
     await user.save();
 
-    console.log('✅ Profile saved:', { city: user.city, locality: user.locality, pincode: user.pincode });
+    console.log('✅ Profile saved:', { 
+      city: user.city, 
+      locality: user.locality, 
+      pincode: user.pincode,
+      profileCompleted: user.profileCompleted,
+      role: user.role,
+      isVerified: user.isVerified
+    });
 
     res.json({
       success: true,
-      message: 'Profile updated successfully',
+      message: user.role === 'NGO' && user.profileCompleted
+        ? '✅ Profile completed! Your NGO is now pending admin verification. An admin from your city will review and approve your NGO soon.'
+        : 'Profile updated successfully',
       data: { 
         user: {
           ...user.toObject(),
-          isProfileComplete: user.isProfileComplete
+          isProfileComplete: user.profileCompleted
         }
       },
     });

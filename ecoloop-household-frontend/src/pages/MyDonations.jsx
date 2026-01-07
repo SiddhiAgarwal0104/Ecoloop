@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
+import NGORatingModal from '../components/NGORatingModal';
 import axios from '../api/axios';
-import { Package, MapPin, Calendar, Edit, Trash2 } from 'lucide-react';
+import { Package, MapPin, Calendar, Edit, Trash2, Star } from 'lucide-react';
 
 const MyDonations = () => {
   const navigate = useNavigate();
@@ -10,6 +11,12 @@ const MyDonations = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [filter, setFilter] = useState('ALL');
+  const [ratingModal, setRatingModal] = useState({
+    isOpen: false,
+    donation: null,
+    ngoInfo: null,
+    ratingType: null
+  });
 
   useEffect(() => {
     fetchDonations();
@@ -50,6 +57,36 @@ const MyDonations = () => {
       console.error('❌ Error deleting donation:', err);
       alert(err.response?.data?.message || 'Failed to delete donation');
     }
+  };
+
+  const openRatingModal = (donation, ratingType) => {
+    // NGO info is already populated in the donation object
+    if (!donation.assignedNGO) {
+      alert('NGO information not available');
+      return;
+    }
+
+    setRatingModal({
+      isOpen: true,
+      donation,
+      ngoInfo: donation.assignedNGO,
+      ratingType
+    });
+  };
+
+  const closeRatingModal = () => {
+    setRatingModal({
+      isOpen: false,
+      donation: null,
+      ngoInfo: null,
+      ratingType: null
+    });
+  };
+
+  const handleRatingSuccess = () => {
+    alert('Rating submitted successfully!');
+    fetchDonations();
+    closeRatingModal();
   };
 
   const filteredDonations = donations.filter(donation => {
@@ -240,7 +277,27 @@ const MyDonations = () => {
                     </div>
                   )}
 
-                  {donation.status !== 'AVAILABLE' && (
+                  {donation.status === 'COMPLETED' && donation.assignedNGO && (
+                    <button
+                      onClick={() => openRatingModal(donation, 'ITEM_RECEIVED')}
+                      className="w-full bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg font-semibold transition-colors flex items-center justify-center gap-2"
+                    >
+                      <Star size={16} />
+                      Rate NGO
+                    </button>
+                  )}
+
+                  {(donation.status === 'ACCEPTED' || donation.status === 'PICKED_UP') && donation.assignedNGO && (
+                    <button
+                      onClick={() => openRatingModal(donation, 'DONATION_CANCELLED')}
+                      className="w-full bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg font-semibold transition-colors flex items-center justify-center gap-2"
+                    >
+                      <Star size={16} />
+                      Report Issue
+                    </button>
+                  )}
+
+                  {donation.status !== 'AVAILABLE' && !donation.assignedNGO && (
                     <button
                       onClick={() => navigate(`/donations/${donation._id}`)}
                       className="w-full btn-primary"
@@ -252,6 +309,17 @@ const MyDonations = () => {
               </div>
             ))}
           </div>
+        )}
+
+        {/* Rating Modal */}
+        {ratingModal.isOpen && ratingModal.donation && ratingModal.ngoInfo && (
+          <NGORatingModal
+            donation={ratingModal.donation}
+            ngoInfo={ratingModal.ngoInfo}
+            ratingType={ratingModal.ratingType}
+            onClose={closeRatingModal}
+            onSuccess={handleRatingSuccess}
+          />
         )}
 
         {/* Summary */}

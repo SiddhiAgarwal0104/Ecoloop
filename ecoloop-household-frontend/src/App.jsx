@@ -38,6 +38,7 @@ import AdminDonations from './pages/AdminDonations'
 import AdminRecyclers from './pages/AdminRecyclers'
 import AdminLeaderboard from './pages/AdminLeaderboard'
 import AdminReports from './pages/AdminReports'
+import NGORatingsPage from './pages/NGORatingsPage'
 
 // Role-based redirect component
 const RoleBasedRedirect = () => {
@@ -74,6 +75,7 @@ function App() {
           <Route path="/admin/ngos" element={<AdminNGOVerification />} />
           <Route path="/admin/donations" element={<AdminDonations />} />
           <Route path="/admin/recyclers" element={<AdminRecyclers />} />
+          <Route path="/admin/ngo-ratings" element={<NGORatingsPage />} />
           <Route path="/admin/leaderboard" element={<AdminLeaderboard />} />
           <Route path="/admin/reports" element={<AdminReports />} />
 

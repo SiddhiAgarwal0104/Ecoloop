@@ -70,6 +70,13 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem('token', res.data.data.token);
 
     axios.defaults.headers.common.Authorization = `Bearer ${res.data.data.token}`;
+    
+    return {
+      success: true,
+      user: res.data.data.user,
+      token: res.data.data.token,
+      needsProfileCompletion: !res.data.data.user.profileCompleted
+    };
   };
 
   /* =========================

@@ -8,6 +8,7 @@ import {
   Trophy,
   FileText,
   Users,
+  Star,
   LogOut,
   Home
 } from 'lucide-react';
@@ -34,6 +35,11 @@ const AdminSidebar = ({ onLogout }) => {
       label: 'Recyclers',
       icon: Recycle,
       path: '/admin/recyclers'
+    },
+    {
+      label: 'NGO Ratings',
+      icon: Star,
+      path: '/admin/ngo-ratings'
     },
     {
       label: 'Leaderboard',

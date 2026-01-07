@@ -1,14 +1,14 @@
 /* =========================
+   External CSS (Leaflet) - Must come first
+========================= */
+@import 'leaflet/dist/leaflet.css';
+
+/* =========================
    Tailwind Base Imports
 ========================= */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-/* =========================
-   External CSS (Leaflet)
-========================= */
-@import 'leaflet/dist/leaflet.css';
 
 /* =========================
    Base Layer

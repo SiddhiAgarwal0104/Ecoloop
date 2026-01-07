@@ -18,11 +18,38 @@ const Login = () => {
     setError('');
     setLoading(true);
     try {
-      await login(email, password);
-      // Login success - AuthContext will set user, then PrivateRoute will redirect
-      navigate('/');
+      console.log('🔐 [Login] Attempting login with email:', email);
+
+      const response = await login(email, password);
+      
+      console.log('✅ [Login] Login successful:', {
+        role: response?.user?.role,
+        profileCompleted: response?.user?.profileCompleted,
+        needsProfileCompletion: response?.needsProfileCompletion
+      });
+
+      // Check if profile needs completion
+      if (response?.needsProfileCompletion) {
+        console.log('🔄 [Login] Redirecting to profile completion');
+        navigate('/profile/complete');
+        return;
+      }
+
+      // Route based on role
+      if (response?.user?.role === 'NGO') {
+        console.log('✅ [Login] NGO user - navigating to NGO dashboard');
+        navigate('/ngo/dashboard');
+      } else if (response?.user?.role === 'RECYCLER') {
+        console.log('✅ [Login] Recycler user - navigating to recycler dashboard');
+        navigate('/recycler/dashboard');
+      } else {
+        console.log('✅ [Login] Household user - navigating to dashboard');
+        navigate('/dashboard');
+      }
     } catch (err) {
-      setError(err.response?.data?.error || 'Login failed');
+      const errorMsg = err.response?.data?.error || err.response?.data?.message || 'Login failed';
+      console.error('❌ [Login] Error:', errorMsg);
+      setError(errorMsg);
     } finally {
       setLoading(false);
     }

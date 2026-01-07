@@ -274,3 +274,96 @@ exports.updateDonationStatus = async (req, res, next) => {
     next(error);
   }
 };
+
+// @desc    Get all verified NGOs for public listing
+// @route   GET /api/ngos
+// @access  Public
+exports.getAllVerifiedNGOs = async (req, res, next) => {
+  try {
+    const { page = 1, limit = 10, search = '', sortBy = 'name' } = req.query;
+    
+    console.log('🔍 Fetching verified NGOs:', { page, limit, search, sortBy });
+
+    // Build filter - only verified NGOs
+    const filter = { 
+      role: 'NGO',
+      isVerified: true 
+    };
+
+    // Add search filter if provided
+    if (search) {
+      filter.$or = [
+        { name: { $regex: search, $options: 'i' } },
+        { email: { $regex: search, $options: 'i' } },
+        { city: { $regex: search, $options: 'i' } }
+      ];
+    }
+
+    // Define valid sort fields
+    const validSortFields = ['name', 'averageRating', 'city', 'createdAt'];
+    const sortField = validSortFields.includes(sortBy) ? sortBy : 'name';
+    const sortOrder = sortBy === 'averageRating' ? -1 : 1; // Descending for rating
+
+    // Calculate pagination
+    const skip = (page - 1) * limit;
+
+    // Fetch NGOs
+    const ngos = await User.find(filter)
+      .select('_id name email phone city locality address averageRating isVerified profilePicture')
+      .sort({ [sortField]: sortOrder })
+      .skip(skip)
+      .limit(parseInt(limit));
+
+    // Count total NGOs
+    const total = await User.countDocuments(filter);
+
+    // Enrich NGO data with donation counts
+    const enrichedNGOs = await Promise.all(
+      ngos.map(async (ngo) => {
+        const Donation = require('../models/Donation');
+        
+        const enrolledDonations = await Donation.countDocuments({ 
+          assignedNGO: ngo._id,
+          status: { $ne: 'CANCELLED' }
+        });
+
+        const completedDonations = await Donation.countDocuments({ 
+          assignedNGO: ngo._id,
+          status: 'COMPLETED'
+        });
+
+        return {
+          _id: ngo._id,
+          name: ngo.name,
+          email: ngo.email,
+          phone: ngo.phone || 'Not provided',
+          city: ngo.city || 'Not set',
+          locality: ngo.locality || 'Not set',
+          address: ngo.address || 'Not set',
+          averageRating: ngo.averageRating || 0,
+          isVerified: ngo.isVerified,
+          profilePicture: ngo.profilePicture,
+          enrolledDonations,
+          completedDonations
+        };
+      })
+    );
+
+    console.log(`✅ Found ${ngos.length} verified NGOs out of ${total} total`);
+
+    res.status(200).json({
+      success: true,
+      count: enrichedNGOs.length,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit)
+      },
+      data: enrichedNGOs
+    });
+  } catch (error) {
+    console.error('❌ Error fetching NGOs:', error);
+    next(error);
+  }
+};

@@ -6,10 +6,18 @@ const {
   acceptDonation,
   getAcceptedDonations,
   updateDonationStatus,
+  getAllVerifiedNGOs,
 } = require('../controllers/ngoController');
 const { protect, restrictTo } = require('../middleware/authMiddleware');
 
-// Apply authentication and NGO restriction to all routes
+// ============ PUBLIC ROUTES (NO AUTH REQUIRED) ============
+
+// Get all verified NGOs (public listing)
+router.get('/', getAllVerifiedNGOs);
+
+// ============ PROTECTED ROUTES (NGO ONLY) ============
+
+// Apply authentication and NGO restriction to protected routes
 router.use(protect);
 router.use(restrictTo('NGO'));
 
