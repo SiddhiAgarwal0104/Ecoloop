@@ -33,6 +33,12 @@ out/
 uploads/
 
 # =========================
+# Credentials & Secrets
+# =========================
+**/config/google-vision-credentials.json
+ecoloop-household-backend/config/google-vision-credentials.json
+
+# =========================
 # Logs
 # =========================
 logs/

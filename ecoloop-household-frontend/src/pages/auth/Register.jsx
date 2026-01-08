@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { GoogleLogin } from '@react-oauth/google';
-import { User, Mail, Lock, Phone, Eye, EyeOff, Heart, Home, Recycle, AlertCircle } from 'lucide-react';
+import { User, Mail, Lock, Phone, Eye, EyeOff, Heart, Home, Recycle, AlertCircle, ArrowLeft } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 /**
@@ -167,6 +167,15 @@ const Register = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-eco-dark to-eco-main flex items-center justify-center p-4">
+      {/* Back Home Button */}
+      <button
+        onClick={() => navigate('/')}
+        className="absolute top-4 left-4 flex items-center gap-2 px-4 py-2 text-white hover:bg-white/20 rounded-lg transition-colors"
+      >
+        <ArrowLeft size={20} />
+        <span className="font-medium">Back Home</span>
+      </button>
+      
       <div className="w-full max-w-2xl bg-white rounded-2xl shadow-2xl p-8">
         {/* Header */}
         <div className="text-center mb-8">
