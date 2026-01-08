@@ -1,4 +1,5 @@
 const RequestAcceptance = require('../models/RequestAcceptance');
+const Recycle = require('../models/Recycle');
 const RecyclerReview = require('../models/RecyclerReview');
 const Recycler = require('../models/Recycler');
 const Notification = require('../models/Notification');
@@ -20,18 +21,18 @@ exports.getAvailableRequests = async (req, res, next) => {
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
 
-    // Get total count
-    const totalCount = await RequestAcceptance.countDocuments({ status: 'ACCEPTED' });
+    // Get total count of available requests (not yet assigned to any recycler)
+    const totalCount = await Recycle.countDocuments({ status: 'AVAILABLE', assignedRecycler: null });
 
-    // Fetch available requests
-    const requests = await RequestAcceptance.find({ status: 'ACCEPTED' })
+    // Fetch available requests from Recycle model (not RequestAcceptance)
+    const requests = await Recycle.find({ status: 'AVAILABLE', assignedRecycler: null })
       .select('-notes')
-      .sort({ acceptedAt: -1 })
+      .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
       .lean();
 
-    console.log(`✅ Fetched ${requests.length} available requests`);
+    console.log(`✅ Fetched ${requests.length} available requests (total: ${totalCount})`);
 
     res.status(200).json({
       success: true,

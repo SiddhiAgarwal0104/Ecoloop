@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const Recycler = require('../models/Recycler');
 const Recycle = require('../models/Recycle');
 const RequestAcceptance = require('../models/RequestAcceptance');
@@ -15,6 +16,7 @@ const axios = require('axios');
 exports.getDashboard = async (req, res, next) => {
   try {
     const recyclerId = req.user.id;
+    console.log(`📊 Loading dashboard for recycler: ${recyclerId}`);
 
     // Fetch recycler data
     const recycler = await Recycler.findById(recyclerId).lean();
@@ -22,28 +24,42 @@ exports.getDashboard = async (req, res, next) => {
       return next(new AppError('Recycler not found', 404));
     }
 
+    // Convert recyclerId to ObjectId for consistent querying
+    const recyclerObjectId = new mongoose.Types.ObjectId(recyclerId);
+
     // Get request statistics from Recycle model
     const [totalAccepted, totalPickedUp, totalRecycled] = await Promise.all([
-      Recycle.countDocuments({ assignedRecycler: recyclerId, status: 'ACCEPTED' }),
-      Recycle.countDocuments({ assignedRecycler: recyclerId, status: 'PICKED_UP' }),
-      Recycle.countDocuments({ assignedRecycler: recyclerId, status: 'RECYCLED' })
+      Recycle.countDocuments({ assignedRecycler: recyclerObjectId, status: 'ACCEPTED' }),
+      Recycle.countDocuments({ assignedRecycler: recyclerObjectId, status: 'PICKED_UP' }),
+      Recycle.countDocuments({ assignedRecycler: recyclerObjectId, status: 'RECYCLED' })
     ]);
 
+    console.log(`📈 Request counts - Accepted: ${totalAccepted}, PickedUp: ${totalPickedUp}, Recycled: ${totalRecycled}`);
+
     // Get recent requests from Recycle model
-    const recentRequests = await Recycle.find({ assignedRecycler: recyclerId })
+    const recentRequests = await Recycle.find({ assignedRecycler: recyclerObjectId })
       .sort({ createdAt: -1 })
       .limit(5)
       .lean();
 
+    console.log(`📋 Recent requests fetched: ${recentRequests.length} items`);
+    console.log(`   Request details:`, recentRequests.map(r => ({
+      id: r._id,
+      status: r.status,
+      category: r.wasteCategory,
+      quantity: r.quantity,
+      createdAt: r.createdAt
+    })));
+
     // Get average rating
-    const reviews = await RecyclerReview.find({ recyclerId }).lean();
+    const reviews = await RecyclerReview.find({ recyclerId: recyclerObjectId }).lean();
     const averageRating = reviews.length > 0
       ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1)
       : 0;
 
     // Get waste collected (only from RECYCLED items)
     const wasteCollectedAgg = await Recycle.aggregate([
-      { $match: { assignedRecycler: recyclerId, status: 'RECYCLED' } },
+      { $match: { assignedRecycler: recyclerObjectId, status: 'RECYCLED' } },
       { $group: { _id: null, total: { $sum: '$quantity' } } }
     ]);
     
@@ -51,7 +67,7 @@ exports.getDashboard = async (req, res, next) => {
 
     // Get waste by category
     const wasteByCategory = await Recycle.aggregate([
-      { $match: { assignedRecycler: recyclerId, status: 'RECYCLED' } },
+      { $match: { assignedRecycler: recyclerObjectId, status: 'RECYCLED' } },
       { $group: { _id: '$category', quantity: { $sum: '$quantity' } } },
       { $project: { _id: 0, category: '$_id', quantity: 1 } }
     ]);
@@ -91,6 +107,7 @@ exports.getDashboard = async (req, res, next) => {
           recycled: totalRecycled
         },
         recentRequests,
+        recentRequestsCount: recentRequests.length,  // DEBUG: Add count for verification
         wasteByCategory,
         availableRequests
       }

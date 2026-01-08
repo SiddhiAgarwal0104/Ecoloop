@@ -71,3 +71,6 @@ module.exports = {
   verifyToken,
   decodeToken
 };
+
+// Also export generateToken as default for backward compatibility
+module.exports.default = generateToken;

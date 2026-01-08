@@ -5,6 +5,7 @@ const http = require('http');
 const { connectDB } = require('./config/db');
 const AppError = require('./utils/appError');
 const { initSocket } = require('./utils/socketService');
+const ngoRoutes = require('./routes/ngoRoutes');
 
 /**
  * EcoLoop Recycler Backend - Main Server File
@@ -35,7 +36,7 @@ connectDB();
  * Allows requests from specified origins
  */
 app.use(cors({
-  origin: (process.env.CORS_ORIGIN || 'http://localhost:5173').split(','),
+  origin: (process.env.CORS_ORIGIN || 'http://localhost:5173,http://localhost:5174').split(','),
   credentials: true,
   optionsSuccessStatus: 200
 }));
@@ -46,6 +47,21 @@ app.use(cors({
  */
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+// Routes
+const errorHandler = require('./middleware/errorHandler');
+app.use('/api/auth', require('./routes/unifiedAuthRoutes'));
+app.use('/api/admin', require('./routes/adminRoutes'));
+app.use('/api/donations', require('./routes/donationRoutes'));
+app.use('/api/recycle', require('./routes/recycleRoutes'));
+app.use('/api/dashboard', require('./routes/dashboardRoutes'));
+app.use('/api/notifications', require('./routes/notificationRoutes'));
+app.use('/api/ngo', ngoRoutes);
+app.use('/api/leaderboard', require('./routes/leaderboardRoutes'));
+app.use('/api/badges', require('./routes/badgeRoutes'));
+app.use('/api/chatbot', require('./routes/chatbotRoutes'));
+app.use('/api/community', require('./routes/requestRoutes'));
+app.use('/api/ngo-ratings', require('./routes/ngoRatingRoutes'));
+
 
 /**
  * Request Logging Middleware (Development Only)
@@ -62,7 +78,7 @@ const recyclerAuthRoutes = require('./routes/recyclerAuthRoutes');
 const recyclerRequestRoutes = require('./routes/recyclerRequestRoutes');
 const recyclerDashboardRoutes = require('./routes/recyclerDashboardRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
-const donationIntegrationRoutes = require('./routes/donationIntegrationRoutes');
+const donationIntegrationRoutes = require('./routes/donationRoutes');
 const recycleIntegrationRoutes = require('./routes/recycleIntegrationRoutes');
 
 // ====== API Routes ======

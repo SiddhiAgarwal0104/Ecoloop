@@ -11,11 +11,13 @@ const connectedUsers = new Map(); // userId -> socket.id
 const initSocket = (server) => {
   io = socketIO(server, {
     cors: {
-      origin: (process.env.CORS_ORIGIN || 'http://localhost:5173').split(','),
+      origin: (process.env.CORS_ORIGIN || 'http://localhost:5173,http://localhost:5174').split(','),
       credentials: true,
       methods: ['GET', 'POST']
     }
   });
+
+  console.log('🔌 Socket.IO initialized with CORS origins:', process.env.CORS_ORIGIN || 'http://localhost:5173,http://localhost:5174');
 
   // Middleware for authentication
   io.use((socket, next) => {

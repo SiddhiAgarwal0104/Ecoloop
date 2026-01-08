@@ -1,100 +1,69 @@
-import React, { useState, useEffect } from 'react';
-import { Activity, TrendingUp, Award, Zap } from 'lucide-react';
-import axios from '../api/axios';
-import { formatNumber, formatCurrency } from '../utils/helpers';
+import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { Heart, Recycle, TrendingUp, Package, Award, Activity } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import RewardsWidget from '../components/RewardsWidget';
 
 /**
- * Dashboard Page Component
- * Main dashboard with statistics and recent activity
+ * Dashboard Page Component - HOUSEHOLD
+ * Main dashboard showing donations, recycles, and rewards
  */
 const Dashboard = () => {
-  const [stats, setStats] = useState(null);
+  const { api } = useAuth();
+  const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    const loadDashboard = async () => {
-      await fetchDashboard();
-      // Fetch available requests after dashboard loads
-      await fetchAvailableRequests();
-    };
-    loadDashboard();
+    fetchDashboard();
   }, []);
 
   const fetchDashboard = async () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await axios.get('/recycler/dashboard');
-      const dashboardData = response.data?.data || response.data;
-      console.log('✅ Dashboard data:', dashboardData);
-      setStats(dashboardData);
+
+      // Fetch dashboard stats
+      const response = await api.get('/dashboard/household');
+      const data = response.data?.data || response.data;
+      
+      console.log('✅ Dashboard data loaded:', data);
+      setDashboardData(data);
     } catch (err) {
-      console.error('❌ Failed to load dashboard:', {
-        message: err.message,
-        status: err.response?.status,
-        data: err.response?.data,
-        error: err
-      });
-      setError(err.response?.data?.error || 'Failed to load dashboard');
+      console.error('❌ Failed to load dashboard:', err);
+      setError(err.response?.data?.message || 'Failed to load dashboard');
     } finally {
       setLoading(false);
     }
   };
 
-  // Fetch available requests from recycler backend (location-filtered)
-  const fetchAvailableRequests = async () => {
-    try {
-      const response = await axios.get('/integration/recycle/available', {
-        params: { limit: 10 }
-      });
-      console.log('✅ Available requests fetched:', response.data?.data);
-      
-      // Update stats with available requests
-      setStats(prevStats => ({
-        ...prevStats,
-        availableRequests: response.data?.data || []
-      }));
-    } catch (err) {
-      console.error('❌ Failed to fetch available requests:', err.message);
-    }
-  };
-
-  useEffect(() => {
-    fetchDashboard();
-    // Fetch available requests separately
-    setTimeout(() => {
-      fetchAvailableRequests();
-    }, 500);
-  }, []);
-
   if (loading) {
     return (
       <div className="flex items-center justify-center h-96">
-        <div className="animate-spin">
-          <div className="w-12 h-12 border-4 border-eco-light border-t-eco-main rounded-full"></div>
-        </div>
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-eco-light border-t-eco-main"></div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-        <p className="text-red-600">❌ Failed to load dashboard. Please try again.</p>
+      <div className="card bg-red-50 border border-red-200 p-6">
+        <p className="text-red-600 font-semibold">❌ {error}</p>
+        <button onClick={fetchDashboard} className="btn-primary mt-4">
+          Retry
+        </button>
       </div>
     );
-  }
-
-  if (!stats) {
-    return <div className="text-gray-500 text-center py-8">No data available</div>;
   }
 
   return (
     <div className="space-y-6">
       {/* Page Header */}
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+          <p className="text-gray-600 mt-1">Welcome back! Here's your eco-impact overview</p>
+        </div>
         <button
           onClick={fetchDashboard}
           className="px-4 py-2 bg-eco-main text-white rounded-lg hover:bg-eco-dark transition-colors"
@@ -105,165 +74,204 @@ const Dashboard = () => {
 
       {/* Statistics Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {/* Total Requests */}
-        <div className="bg-white rounded-lg shadow p-6 border-l-4 border-eco-main">
+        {/* Total Donations */}
+        <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-pink-500">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-gray-600 text-sm">Total Requests</p>
-              <p className="text-3xl font-bold text-gray-900">{stats?.requests?.accepted || stats?.stats?.totalRequests || 0}</p>
+              <p className="text-gray-600 text-sm font-medium">Total Donations</p>
+              <p className="text-3xl font-bold text-gray-900 mt-1">
+                {dashboardData?.stats?.totalDonations || 0}
+              </p>
             </div>
-            <Activity className="text-eco-main" size={32} />
+            <Heart className="text-pink-500" size={40} />
           </div>
         </div>
 
-        {/* Completed Requests */}
-        <div className="bg-white rounded-lg shadow p-6 border-l-4 border-green-500">
+        {/* Total Recycles */}
+        <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-green-500">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-gray-600 text-sm">Completed</p>
-              <p className="text-3xl font-bold text-gray-900">{stats?.requests?.recycled || stats?.stats?.completedRequests || 0}</p>
+              <p className="text-gray-600 text-sm font-medium">Recycle Requests</p>
+              <p className="text-3xl font-bold text-gray-900 mt-1">
+                {dashboardData?.stats?.totalRecycles || 0}
+              </p>
             </div>
-            <TrendingUp className="text-green-500" size={32} />
+            <Recycle className="text-green-500" size={40} />
           </div>
         </div>
 
-        {/* Completion Rate */}
-        <div className="bg-white rounded-lg shadow p-6 border-l-4 border-blue-500">
+        {/* Impact Points */}
+        <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-eco-main">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-gray-600 text-sm">Picked Up</p>
-              <p className="text-3xl font-bold text-gray-900">{stats?.requests?.pickedUp || 0}</p>
+              <p className="text-gray-600 text-sm font-medium">Impact Points</p>
+              <p className="text-3xl font-bold text-gray-900 mt-1">
+                {dashboardData?.stats?.totalPoints || 0}
+              </p>
             </div>
-            <Zap className="text-blue-500" size={32} />
+            <TrendingUp className="text-eco-main" size={40} />
           </div>
         </div>
 
-        {/* Average Rating */}
-        <div className="bg-white rounded-lg shadow p-6 border-l-4 border-yellow-500">
+        {/* Active Items */}
+        <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-blue-500">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-gray-600 text-sm">Average Rating</p>
-              <p className="text-3xl font-bold text-gray-900">{stats?.stats?.rating || 0}/5</p>
-              <p className="text-xs text-gray-500 mt-1">{stats?.stats?.reviewCount || 0} reviews</p>
+              <p className="text-gray-600 text-sm font-medium">Active Items</p>
+              <p className="text-3xl font-bold text-gray-900 mt-1">
+                {(dashboardData?.stats?.activeDonations || 0) + (dashboardData?.stats?.activeRecycles || 0)}
+              </p>
             </div>
-            <Award className="text-yellow-500" size={32} />
+            <Package className="text-blue-500" size={40} />
           </div>
         </div>
       </div>
 
-      {/* Waste Collected & Recent Requests */}
+      {/* Main Grid with Recent Items and Rewards Widget */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Waste Collected */}
-        <div className="bg-white rounded-lg shadow p-6 lg:col-span-1">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">Waste Collected</h2>
-          <p className="text-4xl font-bold text-eco-main">{formatNumber(stats?.stats?.totalWasteCollected || 0)} KG</p>
-          <p className="text-sm text-gray-600 mt-2">Total environmental impact</p>
+        {/* Left Column - Recent Items (2 columns on large screens) */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Recent Donations */}
+          <div className="card bg-white rounded-lg shadow-md p-6">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-2">
+                <Heart className="text-pink-500" size={24} />
+                <h2 className="text-xl font-bold text-gray-900">Recent Donations</h2>
+              </div>
+              <Link to="/donations" className="text-eco-main font-semibold hover:text-eco-dark transition-colors">
+                View All →
+              </Link>
+            </div>
+            <div className="space-y-3">
+              {dashboardData?.donations?.slice(0, 5).map((donation) => (
+                <div key={donation._id} className="p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <p className="font-semibold text-gray-800">{donation.itemCategory}</p>
+                      <p className="text-sm text-gray-500">Qty: {donation.quantity}</p>
+                    </div>
+                    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                      donation.status === 'AVAILABLE' ? 'bg-green-100 text-green-700' :
+                      donation.status === 'ACCEPTED' ? 'bg-yellow-100 text-yellow-700' :
+                      donation.status === 'PICKED_UP' ? 'bg-blue-100 text-blue-700' :
+                      'bg-gray-100 text-gray-700'
+                    }`}>
+                      {donation.status}
+                    </span>
+                  </div>
+                </div>
+              ))}
+              {(!dashboardData?.donations || dashboardData.donations.length === 0) && (
+                <div className="text-center py-8">
+                  <Heart className="mx-auto text-gray-300 mb-3" size={48} />
+                  <p className="text-gray-500">No donations yet</p>
+                  <Link to="/donations/create" className="text-eco-main font-semibold hover:text-eco-dark mt-2 inline-block">
+                    Create your first donation →
+                  </Link>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Recent Recycles */}
+          <div className="card bg-white rounded-lg shadow-md p-6">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-2">
+                <Recycle className="text-green-500" size={24} />
+                <h2 className="text-xl font-bold text-gray-900">Recent Recycle Requests</h2>
+              </div>
+              <Link to="/recycles" className="text-eco-main font-semibold hover:text-eco-dark transition-colors">
+                View All →
+              </Link>
+            </div>
+            <div className="space-y-3">
+              {dashboardData?.recycles?.slice(0, 5).map((recycle) => (
+                <div key={recycle._id} className="p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <p className="font-semibold text-gray-800">{recycle.wasteCategory}</p>
+                      <p className="text-sm text-gray-500">{recycle.quantity} {recycle.unit}</p>
+                    </div>
+                    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                      recycle.status === 'AVAILABLE' ? 'bg-green-100 text-green-700' :
+                      recycle.status === 'ACCEPTED' ? 'bg-yellow-100 text-yellow-700' :
+                      recycle.status === 'PICKED_UP' ? 'bg-blue-100 text-blue-700' :
+                      'bg-gray-100 text-gray-700'
+                    }`}>
+                      {recycle.status}
+                    </span>
+                  </div>
+                </div>
+              ))}
+              {(!dashboardData?.recycles || dashboardData.recycles.length === 0) && (
+                <div className="text-center py-8">
+                  <Recycle className="mx-auto text-gray-300 mb-3" size={48} />
+                  <p className="text-gray-500">No recycle requests yet</p>
+                  <Link to="/recycles/create" className="text-eco-main font-semibold hover:text-eco-dark mt-2 inline-block">
+                    Create your first request →
+                  </Link>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
-        {/* Waste by Category */}
-        <div className="bg-white rounded-lg shadow p-6 lg:col-span-2">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">Waste by Category</h2>
-          <div className="space-y-3">
-            {stats.wasteByCategory && stats.wasteByCategory.length > 0 ? (
-              (() => {
-                const maxTotal = Math.max(...stats.wasteByCategory.map(w => w.total));
-                return stats.wasteByCategory.map((item) => (
-                  <div key={item._id} className="flex items-center justify-between">
-                    <span className="text-gray-700 font-medium">{item._id}</span>
-                    <div className="flex items-center gap-2">
-                      <div className="w-32 bg-gray-200 rounded-full h-2">
-                        <div
-                          className="bg-eco-main h-2 rounded-full"
-                          style={{ width: `${(item.total / maxTotal) * 100}%` }}
-                        ></div>
-                      </div>
-                      <span className="text-gray-600 text-sm">{formatNumber(item.total)} KG</span>
-                    </div>
-                  </div>
-                ));
-              })()
-            ) : (
-              <p className="text-gray-500 text-center py-4">No waste data yet</p>
-            )}
+        {/* Right Column - Rewards Widget */}
+        <div>
+          <RewardsWidget />
+        </div>
+      </div>
+
+      {/* Eco Impact Summary */}
+      <div className="bg-gradient-to-r from-eco-main to-eco-dark rounded-lg shadow-lg p-6 text-white">
+        <div className="flex items-center gap-3 mb-4">
+          <Award className="text-white" size={32} />
+          <div>
+            <h2 className="text-2xl font-bold">Your Eco Impact</h2>
+            <p className="text-eco-light">Making a difference, one action at a time</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
+          <div className="bg-white bg-opacity-10 rounded-lg p-4 backdrop-blur-sm">
+            <p className="text-eco-light text-sm">Items Donated</p>
+            <p className="text-3xl font-bold mt-1">{dashboardData?.stats?.totalDonations || 0}</p>
+          </div>
+          <div className="bg-white bg-opacity-10 rounded-lg p-4 backdrop-blur-sm">
+            <p className="text-eco-light text-sm">Waste Recycled</p>
+            <p className="text-3xl font-bold mt-1">{dashboardData?.stats?.totalRecycles || 0}</p>
+          </div>
+          <div className="bg-white bg-opacity-10 rounded-lg p-4 backdrop-blur-sm">
+            <p className="text-eco-light text-sm">CO₂ Saved</p>
+            <p className="text-3xl font-bold mt-1">{dashboardData?.stats?.co2Saved || 0} kg</p>
           </div>
         </div>
       </div>
 
-      {/* Available Requests from Households */}
-      {console.log('Debug - availableRequests:', stats?.availableRequests)}
-      {stats?.availableRequests && Array.isArray(stats.availableRequests) && stats.availableRequests.length > 0 ? (
-        <div className="bg-gradient-to-r from-eco-light to-eco-main rounded-lg shadow p-6 text-white">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="text-2xl font-bold">Available Waste Requests</h2>
-              <p className="text-eco-light mt-1">{stats.availableRequests.length} households waiting for pickup</p>
+      {/* Quick Actions */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <Link to="/donations/create" className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow group">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-pink-100 rounded-lg flex items-center justify-center group-hover:bg-pink-200 transition-colors">
+              <Heart className="text-pink-500" size={24} />
             </div>
-            <a href="/requests" className="px-4 py-2 bg-white text-eco-main font-semibold rounded-lg hover:bg-eco-light transition-colors">
-              View All →
-            </a>
+            <div>
+              <h3 className="font-bold text-gray-900">Create Donation</h3>
+              <p className="text-sm text-gray-600">Donate items to NGOs in need</p>
+            </div>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
-            {stats.availableRequests.slice(0, 3).map((request) => (
-              <div key={request._id} className="bg-white bg-opacity-10 rounded-lg p-4 border border-white border-opacity-20 backdrop-blur-sm">
-                <div className="flex justify-between items-start mb-3">
-                  <h3 className="font-bold text-lg">{request.wasteType || request.wasteCategory || 'Mixed Waste'}</h3>
-                  <span className="bg-white bg-opacity-20 px-2 py-1 rounded text-xs font-semibold">
-                    {request.quantity || '1'} {request.unit || 'unit'}
-                  </span>
-                </div>
-                <p className="text-sm text-eco-light mb-3">{request.description?.substring(0, 60) || 'No description'}...</p>
-                <div className="flex items-center text-xs opacity-75">
-                  <span>📍 {request.pickupLocation?.address || request.userId?.name || 'Location not specified'}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      ) : null}
+        </Link>
 
-      {/* Recent Requests */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-xl font-bold text-gray-900 mb-4">Recent Requests</h2>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-gray-200">
-                <th className="text-left text-sm font-semibold text-gray-900 py-3">Category</th>
-                <th className="text-left text-sm font-semibold text-gray-900 py-3">Quantity</th>
-                <th className="text-left text-sm font-semibold text-gray-900 py-3">Status</th>
-                <th className="text-left text-sm font-semibold text-gray-900 py-3">Accepted On</th>
-              </tr>
-            </thead>
-            <tbody>
-              {stats.recentRequests && stats.recentRequests.length > 0 ? (
-                stats.recentRequests.map((request) => (
-                  <tr key={request._id} className="border-b border-gray-100 hover:bg-gray-50">
-                    <td className="text-sm text-gray-900 py-4">{request.wasteCategory}</td>
-                    <td className="text-sm text-gray-600 py-4">{request.quantity} {request.unit}</td>
-                    <td className="py-4">
-                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                        request.status === 'RECYCLED' ? 'bg-green-100 text-green-800' :
-                        request.status === 'PICKED_UP' ? 'bg-blue-100 text-blue-800' :
-                        'bg-yellow-100 text-yellow-800'
-                      }`}>
-                        {request.status}
-                      </span>
-                    </td>
-                    <td className="text-sm text-gray-600 py-4">
-                      {new Date(request.acceptedAt).toLocaleDateString()}
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan="4" className="text-center text-gray-500 py-8">
-                    No requests yet
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+        <Link to="/recycles/create" className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow group">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center group-hover:bg-green-200 transition-colors">
+              <Recycle className="text-green-500" size={24} />
+            </div>
+            <div>
+              <h3 className="font-bold text-gray-900">Request Pickup</h3>
+              <p className="text-sm text-gray-600">Schedule waste recycling pickup</p>
+            </div>
+          </div>
+        </Link>
       </div>
     </div>
   );

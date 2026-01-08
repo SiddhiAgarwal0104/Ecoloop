@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, MapPin, Phone, User, Calendar, Package } from 'lucide-react';
 import MapNavigation from '../components/MapNavigation';
 import axios from '../api/axios';
-import { useAuth } from '../hooks';
+import { useAuth } from '../context/AuthContext';
 
 /**
  * Recycler Navigation Page
@@ -32,7 +32,7 @@ const RecyclerNavigation = () => {
 
   const fetchRequestDetails = async () => {
     try {
-      const token = localStorage.getItem('recycler_token');
+      const token = localStorage.getItem('token');
       console.log(`📡 Fetching recycle details for ID: ${recycleId}`);
       console.log(`🔑 Token exists: ${token ? '✅' : '❌'}`);
       
@@ -103,7 +103,7 @@ const RecyclerNavigation = () => {
     return (
       <div className="space-y-4">
         <button
-          onClick={() => navigate('/my-requests')}
+          onClick={() => navigate('/recycler/my-requests')}
           className="btn btn-secondary flex items-center gap-2"
         >
           <ArrowLeft size={18} />
@@ -277,7 +277,7 @@ const RecyclerNavigation = () => {
               Mark as Picked Up
             </button>
             <button
-              onClick={() => navigate('/my-requests')}
+              onClick={() => navigate('/recycler/my-requests')}
               className="btn btn-secondary w-full justify-center"
             >
               Back to My Requests
