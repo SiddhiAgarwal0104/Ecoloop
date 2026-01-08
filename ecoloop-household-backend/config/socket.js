@@ -22,11 +22,12 @@ const initializeSocket = (server) => {
 
 /**
  * Get Socket.IO instance
- * @returns {object} Socket.IO instance
+ * @returns {object|null} Socket.IO instance or null if not initialized
  */
 const getIO = () => {
   if (!io) {
-    throw new Error('Socket.IO not initialized');
+    console.warn('⚠️ Socket.IO not initialized');
+    return null;
   }
   return io;
 };

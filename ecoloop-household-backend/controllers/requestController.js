@@ -19,6 +19,16 @@ const createRequest = async (req, res) => {
       longitude,
     } = req.body;
 
+    console.log('📝 Creating request:', {
+      itemName,
+      userCity: req.user.city,
+      userLocality: req.user.locality,
+      userLocation: req.user.location,
+      formLocality: locality,
+      formLatitude: latitude,
+      formLongitude: longitude,
+    });
+
     // Determine location - use form data if provided, otherwise use user profile data
     let finalLatitude, finalLongitude;
     
@@ -26,10 +36,12 @@ const createRequest = async (req, res) => {
       // Use location from form (map selection)
       finalLatitude = parseFloat(latitude);
       finalLongitude = parseFloat(longitude);
+      console.log('  ✅ Using location from form');
     } else if (req.user.location && typeof req.user.location.latitude === 'number' && typeof req.user.location.longitude === 'number') {
       // Use location from user profile
       finalLatitude = req.user.location.latitude;
       finalLongitude = req.user.location.longitude;
+      console.log('  ✅ Using location from user profile');
     } else {
       return res.status(400).json({
         success: false,
@@ -41,6 +53,14 @@ const createRequest = async (req, res) => {
     const finalLocality = (locality || req.user.locality || 'Not Set').toLowerCase().trim();
     const finalPincode = (pincode || req.user.pincode || '000000').toString().trim();
     const city = (req.user.city || req.user.locality || 'unknown').toLowerCase().trim();
+
+    console.log('  📍 Final location:', {
+      city,
+      locality: finalLocality,
+      pincode: finalPincode,
+      latitude: finalLatitude,
+      longitude: finalLongitude,
+    });
 
     const request = await CommunityRequest.create({
       itemName,
@@ -61,8 +81,11 @@ const createRequest = async (req, res) => {
       status: 'OPEN',
     });
 
+    console.log('  ✅ Request created successfully:', request._id);
+
     res.status(201).json({ success: true, data: request });
   } catch (err) {
+    console.error('❌ Error creating request:', err.message);
     res.status(500).json({ success: false, message: err.message });
   }
 };
@@ -101,34 +124,69 @@ const getLocalityRequests = async (req, res) => {
       query.category = category;
     }
 
-    // Add city filter ONLY if user has city data
+    // Add city filter - must match user's city
     const city = (req.user.city || req.user.locality || '').toLowerCase().trim();
-    if (city) {
-      query.city = city;
-      console.log(`🔍 Filtering by city: ${city}`);
-    } else {
-      console.log(`📍 No city data, showing requests from all cities`);
+    if (!city) {
+      return res.status(400).json({
+        success: false,
+        message: 'City information not found in your profile. Please update your profile with city/locality.',
+      });
     }
+    
+    query.city = city;
+    console.log(`🔍 Filtering by city: "${city}"`);
+    console.log(`📋 Query:`, JSON.stringify(query, null, 2));
 
-    // Get all requests
-    const allRequests = await CommunityRequest.find(query)
+    // Get all requests from the same city
+    let allRequests = await CommunityRequest.find(query)
       .populate('requesterId', 'name email phone')
       .populate('acceptedBy', 'name email')
       .sort({ createdAt: -1 });
 
-    console.log(`📦 Found ${allRequests.length} requests matching filters`);
+    console.log(`📦 Found ${allRequests.length} requests in city: "${city}"`);
+    
+    // If no requests found in the city, try locality as fallback
+    if (allRequests.length === 0) {
+      console.log(`⚠️  No requests found for city "${city}", trying locality fallback`);
+      const locality = (req.user.locality || '').toLowerCase().trim();
+      if (locality && locality !== city) {
+        const fallbackQuery = {
+          ...query,
+          city: undefined, // Remove city filter
+          locality: locality,
+        };
+        allRequests = await CommunityRequest.find(fallbackQuery)
+          .populate('requesterId', 'name email phone')
+          .populate('acceptedBy', 'name email')
+          .sort({ createdAt: -1 });
+        console.log(`📦 Found ${allRequests.length} requests in locality: "${locality}"`);
+      }
+    }
 
     // If user has location data, filter by distance
     if (req.user.location && req.user.location.latitude && req.user.location.longitude) {
       const userLat = req.user.location.latitude;
       const userLon = req.user.location.longitude;
+      
+      console.log(`📍 User location: (${userLat}, ${userLon})`);
+      console.log(`🎯 Calculating distances for ${allRequests.length} requests...`);
+
+      // Separate requests with location data from those without
+      const requestsWithLocation = [];
+      const requestsWithoutLocation = [];
+
+      allRequests.forEach(reqItem => {
+        if (reqItem.location && reqItem.location.latitude && reqItem.location.longitude) {
+          requestsWithLocation.push(reqItem);
+        } else {
+          requestsWithoutLocation.push(reqItem);
+        }
+      });
+
+      console.log(`  📊 ${requestsWithLocation.length} with location, ${requestsWithoutLocation.length} without`);
 
       // Filter requests within 10 km radius
-      const nearbyRequests = allRequests.filter(reqItem => {
-        if (!reqItem.location || !reqItem.location.latitude || !reqItem.location.longitude) {
-          return false; // Skip requests without location data
-        }
-        
+      const nearbyRequests = requestsWithLocation.filter(reqItem => {
         const distance = calculateDistance(
           userLat,
           userLon,
@@ -139,15 +197,30 @@ const getLocalityRequests = async (req, res) => {
         // Add distance to the request object for frontend display
         reqItem.distance = parseFloat(distance.toFixed(2));
         
-        return distance <= RADIUS_KM;
+        const isNearby = distance <= RADIUS_KM;
+        console.log(`  ${isNearby ? '✅' : '❌'} Request "${reqItem.itemName}" - ${distance.toFixed(2)} km away`);
+        
+        return isNearby;
       });
 
-      console.log(`✅ Found ${nearbyRequests.length} requests within ${RADIUS_KM} km`);
+      // Include requests without location data (they're in the same city, so assume nearby)
+      const finalRequests = [...nearbyRequests, ...requestsWithoutLocation];
+      
+      console.log(`✅ Found ${nearbyRequests.length} requests within ${RADIUS_KM} km + ${requestsWithoutLocation.length} requests without location data = ${finalRequests.length} total`);
 
-      return res.status(200).json({
-        success: true,
-        data: nearbyRequests,
-        radius: RADIUS_KM,
+    res.status(200).json({
+      success: true,
+      data: finalRequests,
+      radius: RADIUS_KM,
+      debug: {
+        userCity: city,
+        userLocation: { lat: req.user.location?.latitude, lon: req.user.location?.longitude },
+        totalRequestsInCity: allRequests.length,
+        requestsWithLocation: requestsWithLocation.length,
+        requestsWithoutLocation: requestsWithoutLocation.length,
+        nearbyCount: nearbyRequests.length,
+      },
+      message: `Found ${finalRequests.length} requests in your area`,
       });
     }
 
@@ -156,6 +229,10 @@ const getLocalityRequests = async (req, res) => {
     res.status(200).json({
       success: true,
       data: allRequests,
+      debug: {
+        userCity: city,
+        message: 'No user location data, showing all requests in your city',
+      },
       message: 'Showing all available requests (no location data to filter)',
     });
   } catch (err) {

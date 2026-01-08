@@ -2,6 +2,7 @@ const Recycle = require('../models/Recycle');
 const AppError = require('../utils/appError');
 const { uploadMultipleToCloudinary } = require('../utils/cloudinaryUpload');
 const { updateUserStats } = require('./rewardsController');
+const { detectWasteType } = require('../services/visionApiService');
 
 // @desc    Create recycle request (with image upload)
 // @route   POST /api/recycle
@@ -34,11 +35,51 @@ exports.createRecycleRequest = async (req, res, next) => {
 
     // Upload images to Cloudinary
     let imageUrls = [];
+    let aiDetectedWasteType = null;
+    let aiDetectionResult = null;
+
     if (req.files && req.files.length > 0) {
       console.log('📤 Uploading images to Cloudinary...');
       try {
         imageUrls = await uploadMultipleToCloudinary(req.files, 'ecoloop/recycle');
         console.log('✅ Images uploaded successfully:', imageUrls.length);
+
+        // 🤖 AI WASTE DETECTION - Analyze first image using Google Vision API
+        if (imageUrls.length > 0 && process.env.GOOGLE_VISION_ENABLED === 'true') {
+          console.log('🤖 Running AI waste detection on first image...');
+          console.log('📸 Image URL:', imageUrls[0]);
+          console.log('🔍 GOOGLE_VISION_ENABLED:', process.env.GOOGLE_VISION_ENABLED);
+          try {
+            aiDetectionResult = await detectWasteType(imageUrls[0], 'url');
+            
+            console.log('📊 AI Detection result:', {
+              success: aiDetectionResult.success,
+              error: aiDetectionResult.error,
+              classification: aiDetectionResult.classification ? 'Present' : 'Null'
+            });
+
+            if (aiDetectionResult.success && aiDetectionResult.classification) {
+              aiDetectedWasteType = aiDetectionResult.classification.wasteType;
+              console.log('✅ AI Detection completed:', {
+                detectedType: aiDetectedWasteType,
+                confidence: aiDetectionResult.classification.confidence,
+                recyclable: aiDetectionResult.classification.recyclable
+              });
+            } else {
+              console.warn('⚠️ AI Detection failed:', aiDetectionResult.error);
+            }
+          } catch (detectionError) {
+            console.error('⚠️ Vision API Error:', {
+              message: detectionError.message,
+              stack: detectionError.stack
+            });
+            // Don't fail the request if AI detection fails
+          }
+        } else {
+          console.log('⏭️ AI Detection skipped - Condition check:');
+          console.log('   - Images available:', imageUrls.length > 0);
+          console.log('   - GOOGLE_VISION_ENABLED:', process.env.GOOGLE_VISION_ENABLED);
+        }
       } catch (uploadError) {
         console.error('❌ Image upload failed:', uploadError.message);
         return next(new AppError(`Image upload failed: ${uploadError.message}`, 500));
@@ -55,6 +96,13 @@ exports.createRecycleRequest = async (req, res, next) => {
       unit: unit || 'KG',
       description: description || '',
       images: imageUrls,
+      aiDetectedWasteType: aiDetectedWasteType,
+      aiDetectionResult: aiDetectionResult ? {
+        confidence: aiDetectionResult.classification?.confidence || 0,
+        recyclable: aiDetectionResult.classification?.recyclable || false,
+        detectedItems: aiDetectionResult.classification?.detectedItems || [],
+        tips: aiDetectionResult.classification?.tips || []
+      } : null,
       pickupLocation: {
         address: address,
         latitude: parseFloat(latitude),
@@ -81,10 +129,28 @@ exports.createRecycleRequest = async (req, res, next) => {
 
     console.log('✅ Recycle request created successfully:', recycleRequest._id);
 
+    // Prepare AI detection response
+    const aiDetectionResponse = aiDetectionResult && aiDetectionResult.success && aiDetectionResult.classification ? {
+      detected: true,
+      wasteType: aiDetectionResult.classification.wasteType,
+      confidence: aiDetectionResult.classification.confidence,
+      recyclable: aiDetectionResult.classification.recyclable,
+      tips: aiDetectionResult.classification.tips || [],
+      description: aiDetectionResult.classification.description || '',
+      detectedItems: aiDetectionResult.classification.detectedItems || [],
+      categoryScores: aiDetectionResult.classification.categoryScores || {}
+    } : {
+      detected: false,
+      message: 'AI detection not available'
+    };
+
     res.status(201).json({
       success: true,
       message: 'Recycle request created successfully',
-      data: { recycleRequest }
+      data: { 
+        recycleRequest,
+        aiDetection: aiDetectionResponse
+      }
     });
   } catch (error) {
     console.error('❌ Error creating recycle request:', {

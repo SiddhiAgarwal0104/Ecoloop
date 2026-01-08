@@ -46,4 +46,40 @@ const verifyCloudinaryConfig = async () => {
   }
 };
 
-module.exports = { cloudinary, verifyCloudinaryConfig };
+/**
+ * Upload image to Cloudinary
+ * @async
+ * @param {Buffer} fileBuffer - Image file buffer from multer
+ * @param {string} folder - Cloudinary folder name
+ * @returns {Promise<object>} Upload result with URL
+ */
+const uploadImage = async (fileBuffer, folder = 'ecoloop') => {
+  return new Promise((resolve, reject) => {
+    const uploadStream = cloudinary.uploader.upload_stream(
+      {
+        folder: folder,
+        resource_type: 'auto',
+        quality: 'auto',
+        fetch_format: 'auto',
+      },
+      (error, result) => {
+        if (error) {
+          console.error('❌ Cloudinary Upload Error:', error);
+          reject(error);
+        } else {
+          console.log('✅ Image uploaded to Cloudinary:', result.public_id);
+          resolve({
+            url: result.secure_url,
+            publicId: result.public_id,
+            width: result.width,
+            height: result.height,
+          });
+        }
+      }
+    );
+
+    uploadStream.end(fileBuffer);
+  });
+};
+
+module.exports = { cloudinary, verifyCloudinaryConfig, uploadImage };

@@ -177,9 +177,11 @@ exports.sendMessage = async (req, res) => {
       });
     }
 
-    const isParticipant = chatRoom.participants.some(
-      (p) => p.userId._id.toString() === req.user.id
-    );
+    // Check if user is a participant in this chat room
+    const isParticipant = chatRoom.participants.some((p) => {
+      const participantId = p.userId._id || p.userId;
+      return participantId.toString() === req.user.id.toString();
+    });
 
     if (!isParticipant) {
       return res.status(403).json({
@@ -200,8 +202,11 @@ exports.sendMessage = async (req, res) => {
     chatRoom.lastMessageAt = new Date();
     await chatRoom.save();
 
+    // Emit via Socket.IO if available
     const io = getIO();
-    io.to(chatRoomId).emit('newMessage', message);
+    if (io) {
+      io.to(chatRoomId).emit('newMessage', message);
+    }
 
     res.status(201).json({
       success: true,
@@ -241,9 +246,11 @@ exports.sendImageMessage = async (req, res) => {
       });
     }
 
-    const isParticipant = chatRoom.participants.some(
-      (p) => p.userId._id.toString() === req.user.id
-    );
+    // Check if user is a participant in this chat room
+    const isParticipant = chatRoom.participants.some((p) => {
+      const participantId = p.userId._id || p.userId;
+      return participantId.toString() === req.user.id.toString();
+    });
     if (!isParticipant) {
       return res.status(403).json({
         success: false,
@@ -283,9 +290,11 @@ exports.sendImageMessage = async (req, res) => {
       relatedType: 'ChatRoom',
     });
 
-    // Emit socket event
+    // Emit socket event if available
     const io = getIO();
-    io.to(chatRoomId).emit('newMessage', message);
+    if (io) {
+      io.to(chatRoomId).emit('newMessage', message);
+    }
 
     res.status(201).json({
       success: true,
@@ -317,7 +326,8 @@ exports.confirmLend = async (req, res) => {
 
     // Verify user is lender
     const lender = chatRoom.participants.find((p) => p.role === 'lender');
-    if (lender.userId.toString() !== req.user.id) {
+    const lenderId = lender.userId._id || lender.userId;
+    if (lenderId.toString() !== req.user.id.toString()) {
       return res.status(403).json({
         success: false,
         message: 'Only lender can confirm lending',
@@ -366,12 +376,14 @@ exports.confirmLend = async (req, res) => {
         relatedType: 'CommunityRequest',
       });
 
-      // Emit socket event
+      // Emit socket event if available
       const io = getIO();
-      io.to(chatRoomId).emit('lendingConfirmed', {
-        requestId: request._id,
-        status: 'CONFIRMED',
-      });
+      if (io) {
+        io.to(chatRoomId).emit('lendingConfirmed', {
+          requestId: request._id,
+          status: 'CONFIRMED',
+        });
+      }
     }
 
     res.status(200).json({
@@ -404,7 +416,8 @@ exports.confirmBorrow = async (req, res) => {
 
     // Verify user is borrower
     const borrower = chatRoom.participants.find((p) => p.role === 'requester');
-    if (borrower.userId.toString() !== req.user.id) {
+    const borrowerId = borrower.userId._id || borrower.userId;
+    if (borrowerId.toString() !== req.user.id.toString()) {
       return res.status(403).json({
         success: false,
         message: 'Only borrower can confirm borrowing',
@@ -453,12 +466,108 @@ exports.confirmBorrow = async (req, res) => {
         relatedType: 'CommunityRequest',
       });
 
-      // Emit socket event
+      // Emit socket event if available
       const io = getIO();
-      io.to(chatRoomId).emit('lendingConfirmed', {
-        requestId: request._id,
-        status: 'CONFIRMED',
+      if (io) {
+        io.to(chatRoomId).emit('lendingConfirmed', {
+          requestId: request._id,
+          status: 'CONFIRMED',
+        });
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      data: chatRoom,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+/**
+ * Mark item as handed over by lender
+ * POST /api/chat/:chatRoomId/hand-over
+ */
+exports.markHandedOver = async (req, res) => {
+  try {
+    const { chatRoomId } = req.params;
+
+    const chatRoom = await ChatRoom.findById(chatRoomId);
+    if (!chatRoom) {
+      return res.status(404).json({
+        success: false,
+        message: 'Chat room not found',
       });
+    }
+
+    // Verify user is lender
+    const lender = chatRoom.participants.find((p) => p.role === 'lender');
+    const lenderId = lender.userId._id || lender.userId;
+    if (lenderId.toString() !== req.user.id.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: 'Only lender can mark as handed over',
+      });
+    }
+
+    chatRoom.handedOver = true;
+    await chatRoom.save();
+
+    // Emit socket event if available
+    const io = getIO();
+    if (io) {
+      io.to(chatRoomId).emit('itemHandedOver', { handedOver: true });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: chatRoom,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+/**
+ * Mark item as picked up by borrower
+ * POST /api/chat/:chatRoomId/picked-up
+ */
+exports.markPickedUp = async (req, res) => {
+  try {
+    const { chatRoomId } = req.params;
+
+    const chatRoom = await ChatRoom.findById(chatRoomId);
+    if (!chatRoom) {
+      return res.status(404).json({
+        success: false,
+        message: 'Chat room not found',
+      });
+    }
+
+    // Verify user is borrower
+    const borrower = chatRoom.participants.find((p) => p.role === 'requester');
+    const borrowerId = borrower.userId._id || borrower.userId;
+    if (borrowerId.toString() !== req.user.id.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: 'Only borrower can mark as picked up',
+      });
+    }
+
+    chatRoom.pickedUp = true;
+    await chatRoom.save();
+
+    // Emit socket event if available
+    const io = getIO();
+    if (io) {
+      io.to(chatRoomId).emit('itemPickedUp', { pickedUp: true });
     }
 
     res.status(200).json({

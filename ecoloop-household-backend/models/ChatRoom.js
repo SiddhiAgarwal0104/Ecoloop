@@ -29,6 +29,14 @@ const chatRoomSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    handedOver: {
+      type: Boolean,
+      default: false,
+    },
+    pickedUp: {
+      type: Boolean,
+      default: false,
+    },
     isActive: {
       type: Boolean,
       default: true,

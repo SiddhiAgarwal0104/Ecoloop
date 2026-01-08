@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import ChatBox from '../components/ChatBox';
 import ChatInput from '../components/ChatInput';
+import api from '../services/api';
 import '../index.css';
 
 const ChatPage = () => {
@@ -20,23 +21,26 @@ const ChatPage = () => {
       const formData = new FormData();
       formData.append('message', text);
       if (imageFile) formData.append('image', imageFile);
-      const token = localStorage.getItem('token');
-      const res = await fetch('/api/chatbot/message', {
-        method: 'POST',
+      
+      console.log('🚀 Sending message to chatbot:', text);
+      console.log('📍 API URL:', api.defaults.baseURL + '/chatbot/message');
+      
+      const res = await api.post('/chatbot/message', formData, {
         headers: {
-          Authorization: `Bearer ${token}`,
+          'Content-Type': 'multipart/form-data',
         },
-        body: formData,
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Chatbot error');
+      
+      console.log('✅ Chatbot response:', res.data);
+      
       setMessages((prev) => [
         ...prev,
         { sender: 'user', text },
-        { sender: 'bot', text: data.reply },
+        { sender: 'bot', text: res.data.reply },
       ]);
     } catch (err) {
-      setError(err.message);
+      console.error('❌ Chatbot error:', err);
+      setError(err.response?.data?.error || err.message || 'Chatbot error');
     } finally {
       setLoading(false);
     }

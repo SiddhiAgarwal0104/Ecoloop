@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken');
+const User = require('../models/User');
 const AppError = require('../utils/appError');
 
 /**
@@ -33,11 +34,17 @@ exports.protect = async (req, res, next) => {
       // Verify token
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-      // Attach user ID to request (support both _id and id)
-      req.user = { 
-        _id: decoded.id,
-        id: decoded.id 
-      };
+      // Fetch full user document from database to get all fields
+      const user = await User.findById(decoded.id);
+      
+      if (!user) {
+        return next(new AppError('User not found', 404));
+      }
+
+      // Attach full user object to request
+      // Also add 'id' as an alias for '_id' for backward compatibility
+      req.user = user;
+      req.user.id = user._id.toString();
 
       console.log(`✅ User authenticated: ${decoded.id}`);
       next();

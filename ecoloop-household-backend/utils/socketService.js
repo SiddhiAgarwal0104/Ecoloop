@@ -64,6 +64,7 @@ const initSocket = (server) => {
 const getIO = () => {
   if (!io) {
     console.error('❌ Socket.IO not initialized');
+    return null;
   }
   return io;
 };

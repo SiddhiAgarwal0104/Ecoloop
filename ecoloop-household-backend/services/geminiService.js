@@ -25,8 +25,21 @@ async function callGeminiAPI(prompt, apiKey) {
     }
     return text.trim();
   } catch (error) {
-    console.error('Gemini API error:', error.response?.data?.error?.message || error.message);
-    console.error('Full error:', error);
+    console.error('❌ Gemini API error:');
+    if (error.response) {
+      console.error('Status:', error.response.status);
+      console.error('Status Text:', error.response.statusText);
+      console.error('Response Data:', JSON.stringify(error.response.data, null, 2));
+      
+      // Check for specific error messages
+      if (error.response.status === 403) {
+        console.error('🔑 API KEY ISSUE: Please regenerate your Gemini API key from Google Cloud Console');
+      }
+    } else if (error.request) {
+      console.error('No response received:', error.request);
+    } else {
+      console.error('Error message:', error.message);
+    }
     
     // Fallback: Return a helpful default response
     console.log('Using fallback response due to API unavailability');

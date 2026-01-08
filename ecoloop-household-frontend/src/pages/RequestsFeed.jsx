@@ -53,6 +53,8 @@ const RequestsFeed = () => {
       }
 
       const response = await getLocalityRequests(filters);
+      console.log('📦 Locality requests response:', response);
+      console.log('📍 Debug info:', response?.debug || 'No debug info');
       setRequests(response || []);
 
       // Fetch user's active requests for pinning

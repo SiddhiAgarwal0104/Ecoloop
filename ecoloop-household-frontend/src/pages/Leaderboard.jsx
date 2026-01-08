@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import Layout from '../components/Layout';
 import axios from '../api/axios';
 import { Trophy, Medal, Crown, TrendingUp, MapPin, Award } from 'lucide-react';
 
@@ -22,6 +21,13 @@ const Leaderboard = () => {
         : '/leaderboard/locality';
       
       const response = await axios.get(endpoint);
+      console.log('📊 Leaderboard Response:', {
+        endpoint,
+        leaderboard: response.data.data.leaderboard,
+        currentUser: response.data.data.currentUser,
+        locality: response.data.data.locality,
+        totalUsers: response.data.data.totalUsersInLocality
+      });
       setLeaderboard(response.data.data.leaderboard);
       setCurrentUser(response.data.data.currentUser);
     } catch (error) {
@@ -56,8 +62,7 @@ const Leaderboard = () => {
   }
 
   return (
-    
-      <div className="fade-in max-w-7xl mx-auto">
+    <div className="fade-in max-w-7xl mx-auto px-4 py-6">
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-eco-dark mb-2">🏆 Leaderboard</h1>
@@ -127,7 +132,7 @@ const Leaderboard = () => {
           </div>
         )}
 
-        {/* Top 3 Podium */}
+        {/* Top 3 Podium - Only show if 4 or more users (so we can hide top 3 in Full Rankings) */}
         {leaderboard.length >= 3 && (
           <div className="grid grid-cols-3 gap-4 mb-8">
             {/* 2nd Place */}
@@ -177,53 +182,122 @@ const Leaderboard = () => {
         {/* Full Leaderboard */}
         <div className="card">
           <h2 className="text-xl font-bold text-eco-dark mb-4">Full Rankings</h2>
-          <div className="space-y-3">
-            {leaderboard.slice(3).map((user) => (
-              <div
-                key={user.userId}
-                className={`p-4 rounded-xl transition-all ${
-                  user.isCurrentUser
-                    ? 'bg-green-50 border-2 border-green-300'
-                    : 'bg-gray-50 hover:bg-gray-100'
-                }`}
-              >
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center font-bold text-gray-700">
-                    #{user.rank}
-                  </div>
-                  
-                  <div className="flex-1">
-                    <h3 className="font-bold text-gray-800">
-                      {user.name}
-                      {user.isCurrentUser && (
-                        <span className="ml-2 text-xs bg-green-600 text-white px-2 py-1 rounded-full">
-                          You
+          {leaderboard.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-gray-500 text-lg">No rankings available yet.</p>
+              <p className="text-gray-400 text-sm mt-1">Start creating donations and recycling to appear on the leaderboard!</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {leaderboard.length > 3 ? (
+                // Show users from rank 4+ (hide top 3 in podium)
+                leaderboard.slice(3).map((user) => (
+                <div
+                  key={user.userId}
+                  className={`p-4 rounded-xl transition-all ${
+                    user.isCurrentUser
+                      ? 'bg-green-50 border-2 border-green-300'
+                      : 'bg-gray-50 hover:bg-gray-100'
+                  }`}
+                >
+                  <div className="flex items-center gap-4">
+                    <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-white ${
+                      user.rank === 1 ? 'bg-yellow-500' :
+                      user.rank === 2 ? 'bg-gray-400' :
+                      user.rank === 3 ? 'bg-amber-600' :
+                      'bg-gray-400'
+                    }`}>
+                      #{user.rank}
+                    </div>
+                    
+                    <div className="flex-1">
+                      <h3 className="font-bold text-gray-800 flex items-center gap-2">
+                        {user.name}
+                        {user.rank === 1 && <span className="text-xl">👑</span>}
+                        {user.rank === 2 && <span className="text-xl">🥈</span>}
+                        {user.rank === 3 && <span className="text-xl">🥉</span>}
+                        {user.isCurrentUser && (
+                          <span className="ml-2 text-xs bg-green-600 text-white px-2 py-1 rounded-full">
+                            You
+                          </span>
+                        )}
+                      </h3>
+                      <div className="flex items-center gap-4 text-sm text-gray-600 mt-1">
+                        <span className="flex items-center gap-1">
+                          <MapPin size={14} />
+                          {user.locality}
                         </span>
-                      )}
-                    </h3>
-                    <div className="flex items-center gap-4 text-sm text-gray-600 mt-1">
-                      <span className="flex items-center gap-1">
-                        <MapPin size={14} />
-                        {user.locality}
-                      </span>
-                      <span>Level {user.level}</span>
-                      <span>🏆 {user.badgesEarned} badges</span>
+                        <span>Level {user.level}</span>
+                        <span>🏆 {user.badgesEarned} badges</span>
+                      </div>
+                    </div>
+
+                    <div className="text-right">
+                      <p className="text-2xl font-bold text-green-600">
+                        {user.totalPoints}
+                      </p>
+                      <p className="text-xs text-gray-500">points</p>
                     </div>
                   </div>
+                </div>
+              ))
+              ) : (
+                // Show all users if 3 or fewer
+                leaderboard.map((user) => (
+                <div
+                  key={user.userId}
+                  className={`p-4 rounded-xl transition-all ${
+                    user.isCurrentUser
+                      ? 'bg-green-50 border-2 border-green-300'
+                      : 'bg-gray-50 hover:bg-gray-100'
+                  }`}
+                >
+                  <div className="flex items-center gap-4">
+                    <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-white ${
+                      user.rank === 1 ? 'bg-yellow-500' :
+                      user.rank === 2 ? 'bg-gray-400' :
+                      user.rank === 3 ? 'bg-amber-600' :
+                      'bg-gray-400'
+                    }`}>
+                      #{user.rank}
+                    </div>
+                    
+                    <div className="flex-1">
+                      <h3 className="font-bold text-gray-800 flex items-center gap-2">
+                        {user.name}
+                        {user.rank === 1 && <span className="text-xl">👑</span>}
+                        {user.rank === 2 && <span className="text-xl">🥈</span>}
+                        {user.rank === 3 && <span className="text-xl">🥉</span>}
+                        {user.isCurrentUser && (
+                          <span className="ml-2 text-xs bg-green-600 text-white px-2 py-1 rounded-full">
+                            You
+                          </span>
+                        )}
+                      </h3>
+                      <div className="flex items-center gap-4 text-sm text-gray-600 mt-1">
+                        <span className="flex items-center gap-1">
+                          <MapPin size={14} />
+                          {user.locality}
+                        </span>
+                        <span>Level {user.level}</span>
+                        <span>🏆 {user.badgesEarned} badges</span>
+                      </div>
+                    </div>
 
-                  <div className="text-right">
-                    <p className="text-2xl font-bold text-green-600">
-                      {user.totalPoints}
-                    </p>
-                    <p className="text-xs text-gray-500">points</p>
+                    <div className="text-right">
+                      <p className="text-2xl font-bold text-green-600">
+                        {user.totalPoints}
+                      </p>
+                      <p className="text-xs text-gray-500">points</p>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))
+              )}
+            </div>
+          )}
         </div>
       </div>
-    
   );
 };
 

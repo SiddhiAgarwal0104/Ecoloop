@@ -43,6 +43,29 @@ const recycleSchema = new mongoose.Schema({
   images: [{
     type: String
   }],
+  aiDetectedWasteType: {
+    type: String,
+    enum: ['PLASTIC', 'PAPER', 'METAL', 'GLASS', 'E_WASTE', 'ORGANIC', 'HAZARDOUS', 'UNKNOWN', null],
+    default: null
+  },
+  aiDetectionResult: {
+    confidence: {
+      type: Number,
+      min: 0,
+      max: 1,
+      default: 0
+    },
+    recyclable: {
+      type: Boolean,
+      default: false
+    },
+    detectedItems: [{
+      name: String,
+      confidence: Number,
+      type: String
+    }],
+    tips: [String]
+  },
   pickupLocation: {
     address: {
       type: String,

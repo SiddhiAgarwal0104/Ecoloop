@@ -1,8 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { X, Upload, Image as ImageIcon, Pin, MapPin, Map } from 'lucide-react';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
-import { validateRequired, isValidPincode, isValidDateRange } from '../../utils/validators';
+import React, { useState } from 'react';
+import { X, Upload, MapPin } from 'lucide-react';
+import LocationPicker from '../LocationPicker';
+import { isValidDateRange } from '../../utils/validators';
 
 const CATEGORIES = [
   'Electronics',
@@ -18,92 +17,40 @@ const CATEGORIES = [
 ];
 
 const RequestForm = ({ onSubmit, onCancel, loading }) => {
-  const mapRef = useRef(null);
-  const mapInstance = useRef(null);
-  const markerRef = useRef(null);
-  
   const [formData, setFormData] = useState({
     itemName: '',
     category: '',
     description: '',
     locality: '',
-    pincode: '',
     latitude: '',
     longitude: '',
     startDate: '',
     endDate: '',
+    address: '',
   });
 
   const [images, setImages] = useState([]);
   const [imagePreviews, setImagePreviews] = useState([]);
   const [errors, setErrors] = useState({});
-  const [showMap, setShowMap] = useState(false);
 
-  useEffect(() => {
-    if (showMap && mapRef.current && !mapInstance.current) {
-      if ('geolocation' in navigator) {
-        navigator.geolocation.getCurrentPosition(
-          (position) => {
-            const { latitude, longitude } = position.coords;
-            initializeMap(latitude, longitude);
-          },
-          () => {
-            initializeMap(28.6139, 77.2090);
-          }
-        );
-      }
-    }
-  }, [showMap]);
+  const handleLocationSelect = (location) => {
+    const { address, locality, latitude, longitude } = location;
+    
+    setFormData((prev) => ({
+      ...prev,
+      address: address,
+      locality: locality || '',
+      latitude: parseFloat(latitude).toFixed(6),
+      longitude: parseFloat(longitude).toFixed(6),
+    }));
 
-  const initializeMap = (lat, lng) => {
-    if (mapInstance.current) return;
-
-    mapInstance.current = L.map(mapRef.current).setView([lat, lng], 13);
-
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© OpenStreetMap contributors',
-      maxZoom: 19,
-    }).addTo(mapInstance.current);
-
-    markerRef.current = L.marker([lat, lng], { draggable: true }).addTo(
-      mapInstance.current
-    );
-
-    markerRef.current.on('dragend', async () => {
-      const { lat: newLat, lng: newLng } = markerRef.current.getLatLng();
-      await getReverseGeocode(newLat, newLng);
-    });
-
-    mapInstance.current.on('click', async (e) => {
-      const { lat: newLat, lng: newLng } = e.latlng;
-      markerRef.current.setLatLng([newLat, newLng]);
-      await getReverseGeocode(newLat, newLng);
-    });
-
-    getReverseGeocode(lat, lng);
-  };
-
-  const getReverseGeocode = async (lat, lng) => {
-    try {
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`
-      );
-      const data = await response.json();
-
-      const address = data.address || {};
-      const locality = address.suburb || address.city || address.town || '';
-      const pincode = address.postcode || '';
-
-      setFormData((prev) => ({
-        ...prev,
-        locality: locality,
-        pincode: pincode,
-        latitude: parseFloat(lat).toFixed(6),
-        longitude: parseFloat(lng).toFixed(6),
-      }));
-    } catch (error) {
-      console.error('Reverse geocoding failed:', error);
-    }
+    // Clear location errors
+    setErrors((prev) => ({
+      ...prev,
+      locality: '',
+      latitude: '',
+      longitude: '',
+    }));
   };
 
   const handleChange = (e) => {
@@ -152,12 +99,8 @@ const RequestForm = ({ onSubmit, onCancel, loading }) => {
     // Required fields
     if (!formData.itemName.trim()) newErrors.itemName = 'Item name is required';
     if (!formData.category) newErrors.category = 'Category is required';
-    if (!formData.locality.trim()) newErrors.locality = 'Locality is required';
-    if (!formData.pincode.trim()) {
-      newErrors.pincode = 'Pincode is required';
-    } else if (!isValidPincode(formData.pincode)) {
-      newErrors.pincode = 'Invalid pincode format';
-    }
+    if (!formData.locality.trim()) newErrors.locality = 'Location is required. Please use the location picker to select a location';
+    if (!formData.latitude || !formData.longitude) newErrors.locality = 'Please select a location using the location picker';
     if (!formData.startDate) newErrors.startDate = 'Start date is required';
     if (!formData.endDate) newErrors.endDate = 'End date is required';
 
@@ -294,72 +237,35 @@ const RequestForm = ({ onSubmit, onCancel, loading }) => {
         )}
       </div>
 
-      {/* Map Section */}
+      {/* Map Section with Location Search */}
       <div>
-        <button
-          type="button"
-          onClick={() => setShowMap(!showMap)}
-          className="flex items-center gap-2 text-eco-main hover:text-eco-dark font-semibold mb-3 transition-colors"
-        >
-          <Map size={20} />
-          {showMap ? 'Hide Map' : 'Show Map to Select Location'}
-        </button>
-
-        {showMap && (
-          <div className="mb-4">
-            <div
-              ref={mapRef}
-              className="w-full h-80 rounded-xl border-2 border-eco-main mb-2"
-            />
-            <p className="text-xs text-gray-500 flex items-center gap-1">
-              <Pin size={14} />
-              Click on the map or drag the marker to select location
-            </p>
-          </div>
+        <label className="block text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+          <MapPin size={18} />
+          Select Location *
+        </label>
+        <LocationPicker onLocationSelect={handleLocationSelect} />
+        {errors.locality && (
+          <p className="text-red-500 text-xs mt-2">{errors.locality}</p>
         )}
       </div>
 
-      {/* Locality and Pincode */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">
-            Locality *
-          </label>
-          <input
-            type="text"
-            name="locality"
-            value={formData.locality}
-            onChange={handleChange}
-            placeholder="e.g., Koramangala"
-            className={`input-field ${errors.locality ? 'border-red-500' : ''}`}
-          />
-          {errors.locality && (
-            <p className="text-red-500 text-xs mt-1">{errors.locality}</p>
+      {/* Address Display */}
+      {formData.address && (
+        <div className="bg-eco-light p-3 rounded-lg border border-eco-main/20">
+          <p className="text-xs text-gray-600 mb-1">Selected Location:</p>
+          <p className="text-sm font-semibold text-gray-800">{formData.address}</p>
+          {formData.latitude && formData.longitude && (
+            <p className="text-xs text-gray-500 mt-1">
+              Coordinates: {formData.latitude}, {formData.longitude}
+            </p>
           )}
         </div>
-
-        <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">
-            Pincode *
-          </label>
-          <input
-            type="text"
-            name="pincode"
-            value={formData.pincode}
-            onChange={handleChange}
-            placeholder="e.g., 560034"
-            className={`input-field ${errors.pincode ? 'border-red-500' : ''}`}
-            maxLength={6}
-          />
-          {errors.pincode && (
-            <p className="text-red-500 text-xs mt-1">{errors.pincode}</p>
-          )}
-        </div>
-      </div>
+      )}
 
       {/* Hidden Fields for Latitude/Longitude */}
       <input type="hidden" name="latitude" value={formData.latitude} />
       <input type="hidden" name="longitude" value={formData.longitude} />
+      <input type="hidden" name="address" value={formData.address} />
 
       {/* Start and End Date */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

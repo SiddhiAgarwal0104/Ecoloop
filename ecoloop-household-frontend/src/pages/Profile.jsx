@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Mail, Phone, MapPin, Edit2, Save, X, User, Home } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import LocationPicker from '../components/LocationPicker';
 
 /**
  * Profile Page Component
@@ -16,6 +17,7 @@ const Profile = () => {
   console.log('📄 Profile component mounted');
   console.log('   User:', user);
   console.log('   User role:', user?.role);
+  console.log('   isEditing:', isEditing);
 
   const isRecycler = user?.role === 'RECYCLER';
   const isNGO = user?.role === 'NGO';
@@ -28,7 +30,9 @@ const Profile = () => {
     locality: '',
     pincode: '',
     address: '',
-    bio: ''
+    bio: '',
+    latitude: null,
+    longitude: null,
   });
 
   // Sync form data with user
@@ -41,7 +45,9 @@ const Profile = () => {
         locality: user.locality || '',
         pincode: user.pincode || '',
         address: user.address || '',
-        bio: user.bio || ''
+        bio: user.bio || '',
+        latitude: user.latitude || null,
+        longitude: user.longitude || null,
       });
     }
   }, [user]);
@@ -60,6 +66,16 @@ const Profile = () => {
     setSuccess('');
   };
 
+  const handleLocationSelect = (location) => {
+    setFormData(prev => ({
+      ...prev,
+      address: location.address,
+      locality: location.locality || location.address.split(',')[0]?.trim(),
+      latitude: location.latitude,
+      longitude: location.longitude,
+    }));
+  };
+
   const handleSave = async () => {
     setLoading(true);
     setError('');
@@ -74,6 +90,12 @@ const Profile = () => {
         pincode: formData.pincode?.trim() || '',
         address: formData.address?.trim() || '',
       };
+
+      // Include coordinates if available
+      if (formData.latitude !== null && formData.longitude !== null) {
+        payload.latitude = formData.latitude;
+        payload.longitude = formData.longitude;
+      }
 
       // Validation
       if (!payload.city) {
@@ -121,7 +143,9 @@ const Profile = () => {
       locality: user?.locality || '',
       pincode: user?.pincode || '',
       address: user?.address || '',
-      bio: user?.bio || ''
+      bio: user?.bio || '',
+      latitude: user?.latitude || null,
+      longitude: user?.longitude || null,
     });
     setError('');
     setSuccess('');
@@ -193,7 +217,7 @@ const Profile = () => {
 
         {/* Profile Fields */}
         {isEditing ? (
-          <form onSubmit={(e) => { e.preventDefault(); handleSave(); }} className="space-y-6">
+          <form onSubmit={(e) => { e.preventDefault(); handleSave(); }} className="space-y-6" noValidate>
             {/* Name - Read Only */}
             <div>
               <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
@@ -308,6 +332,29 @@ const Profile = () => {
               />
             </div>
 
+            {/* Location Picker - Map Feature */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                📍 Select Your Location on Map *
+              </label>
+              <p className="text-xs text-gray-600 mb-3">
+                Click on the map to select your exact location. This helps us match you with nearby services.
+              </p>
+              
+              <LocationPicker onLocationSelect={handleLocationSelect} />
+
+              {formData.latitude && formData.longitude && (
+                <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+                  <p className="text-xs text-green-700 font-medium">
+                    ✅ Location selected: {formData.latitude.toFixed(4)}, {formData.longitude.toFixed(4)}
+                  </p>
+                  <p className="text-xs text-green-700 mt-1">
+                    Address: {formData.address}
+                  </p>
+                </div>
+              )}
+            </div>
+
             {/* Action Buttons */}
             <div className="flex gap-4 pt-6 border-t border-gray-200">
               <button
@@ -319,7 +366,8 @@ const Profile = () => {
                 Cancel
               </button>
               <button
-                type="submit"
+                type="button"
+                onClick={handleSave}
                 disabled={loading}
                 className="flex-1 bg-eco-main text-white py-3 rounded-lg hover:bg-eco-dark disabled:bg-gray-400 transition-colors flex items-center justify-center gap-2 font-medium"
               >
@@ -367,6 +415,23 @@ const Profile = () => {
               <p className="text-sm text-gray-600 mb-1">Address</p>
               <p className="text-lg font-semibold text-gray-800">{user.address || 'Not provided'}</p>
             </div>
+
+            {/* Location Coordinates */}
+            {(user.latitude || user.longitude) && (
+              <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                <p className="text-sm text-blue-600 mb-2">📍 Location Coordinates</p>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-xs text-blue-600">Latitude</p>
+                    <p className="text-sm font-mono text-blue-900">{user.latitude?.toFixed(6) || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-blue-600">Longitude</p>
+                    <p className="text-sm font-mono text-blue-900">{user.longitude?.toFixed(6) || 'N/A'}</p>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

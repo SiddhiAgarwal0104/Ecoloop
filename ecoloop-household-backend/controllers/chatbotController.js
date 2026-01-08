@@ -35,6 +35,10 @@ async function getImageClassification(req) {
 
 exports.handleMessage = async (req, res) => {
   try {
+    console.log('📨 Chatbot request received');
+    console.log('📋 Request body:', req.body);
+    console.log('📁 Request file:', req.file);
+    
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) return res.status(500).json({ error: 'Gemini API key not set.' });
 
