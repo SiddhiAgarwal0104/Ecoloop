@@ -6,6 +6,7 @@ import { NotificationProvider } from './context/NotificationContext';
 import { initSocket } from './utils/socketService';
 import PrivateRoute from './components/PrivateRoute';
 import Layout from './components/Layout';
+import RecyclerLayout from './components/RecyclerLayout';
 
 // Auth Pages
 import Login from './pages/auth/Login';
@@ -55,6 +56,8 @@ import AdminDashboard from './pages/AdminDashboard';
 import AdminNGOVerification from './pages/AdminNGOVerification';
 import AdminDonations from './pages/AdminDonations';
 import AdminRecyclers from './pages/AdminRecyclers';
+import AdminRecycles from './pages/AdminRecycles';
+import AdminRecyclerRatings from './pages/AdminRecyclerRatings';
 import AdminLeaderboard from './pages/AdminLeaderboard';
 import AdminReports from './pages/AdminReports';
 import NGORatingsPage from './pages/NGORatingsPage';
@@ -131,8 +134,10 @@ function App() {
             <Route path="/admin/profile/complete" element={<AdminCompleteProfile />} />
             <Route path="/admin/dashboard" element={<AdminDashboard />} />
             <Route path="/admin/ngos" element={<AdminNGOVerification />} />
-            <Route path="/admin/donations" element={<AdminDonations />} />
             <Route path="/admin/recyclers" element={<AdminRecyclers />} />
+            <Route path="/admin/donations" element={<AdminDonations />} />
+            <Route path="/admin/recycles" element={<AdminRecycles />} />
+            <Route path="/admin/recycler-ratings" element={<AdminRecyclerRatings />} />
             <Route path="/admin/ngo-ratings" element={<NGORatingsPage />} />
             <Route path="/admin/leaderboard" element={<AdminLeaderboard />} />
             <Route path="/admin/reports" element={<AdminReports />} />
@@ -142,7 +147,7 @@ function App() {
               <Route path="/profile/complete" element={<CompleteProfile />} />
             </Route>
 
-            {/* Protected Routes with Layout */}
+            {/* Protected Routes with Household Layout */}
             <Route element={<PrivateRoute />}>
               <Route element={<Layout />}>
                 {/* Role-based Home Redirect */}
@@ -153,6 +158,7 @@ function App() {
                 <Route path="/donations" element={<MyDonations />} />
                 <Route path="/donations/create" element={<CreateDonation />} />
                 <Route path="/recycles" element={<MyRecycles />} />
+                <Route path="/my-requests" element={<MyRecycles />} />
                 <Route path="/recycles/create" element={<CreateRecycle />} />
 
                 {/* NGO Routes */}
@@ -160,13 +166,7 @@ function App() {
                 <Route path="/ngo/donations/available" element={<NGOAvailableDonations />} />
                 <Route path="/ngo/donations/accepted" element={<NGOAcceptedDonations />} />
 
-                {/* Recycler Routes */}
-                <Route path="/recycler/dashboard" element={<RecyclerDashboard />} />
-                <Route path="/recycler/requests" element={<RecyclerRequests />} />
-                <Route path="/recycler/my-requests" element={<RecyclerMyRecycles />} />
-                <Route path="/recycler/navigate/:recycleId" element={<RecyclerNavigation />} />
-
-                {/* Common Routes (All Roles) */}
+                {/* Common Routes (Household/NGO) */}
                 <Route path="/notifications" element={<Notifications />} />
                 <Route path="/profile" element={<Profile />} />
                 <Route path="/badges" element={<Badges />} />
@@ -179,6 +179,18 @@ function App() {
                 <Route path="/community/create-request" element={<CreateRequest />} />
                 <Route path="/community/active-lendings" element={<ActiveLendings />} />
                 <Route path="/community/chat/:chatRoomId" element={<CommunityChat />} />
+              </Route>
+            </Route>
+
+            {/* Protected Routes with Recycler Layout */}
+            <Route element={<PrivateRoute />}>
+              <Route element={<RecyclerLayout />}>
+                {/* Recycler Routes */}
+                <Route path="/recycler/dashboard" element={<RecyclerDashboard />} />
+                <Route path="/recycler/requests" element={<RecyclerRequests />} />
+                <Route path="/recycler/my-requests" element={<RecyclerMyRecycles />} />
+                <Route path="/recycler/navigate/:recycleId" element={<RecyclerNavigation />} />
+                <Route path="/recycler/profile" element={<Profile />} />
               </Route>
             </Route>
 

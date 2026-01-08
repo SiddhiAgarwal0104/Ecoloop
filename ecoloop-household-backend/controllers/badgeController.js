@@ -27,24 +27,44 @@ exports.getAllBadges = async (req, res, next) => {
 exports.getMyBadges = async (req, res, next) => {
   try {
     const userId = req.user.id;
+    console.log(`📬 Fetching badges for user: ${userId}`);
 
     // Get all user badges with badge details
     const userBadges = await UserBadge.find({ userId })
       .populate('badgeId')
       .sort({ earnedAt: -1 });
 
+    console.log(`✅ Found ${userBadges.length} user badges`);
+
+    // Filter out null badgeId entries (deleted badges)
+    const validUserBadges = userBadges.filter(ub => {
+      if (!ub.badgeId) {
+        console.warn(`⚠️ Skipping badge record with null badgeId: ${ub._id}`);
+        return false;
+      }
+      return true;
+    });
+
+    console.log(`   - Valid badges: ${validUserBadges.length}`);
+
     // Separate earned and in-progress
-    const earned = userBadges.filter(ub => ub.isCompleted);
-    const inProgress = userBadges.filter(ub => !ub.isCompleted);
+    const earned = validUserBadges.filter(ub => ub.isCompleted);
+    const inProgress = validUserBadges.filter(ub => !ub.isCompleted);
+
+    console.log(`   - Earned: ${earned.length}`);
+    console.log(`   - In Progress: ${inProgress.length}`);
 
     // Get all available badges
     const allBadges = await Badge.find({ isActive: true });
+    console.log(`   - Total Available: ${allBadges.length}`);
 
     // Find locked badges (not started)
-    const userBadgeIds = userBadges.map(ub => ub.badgeId._id.toString());
+    const userBadgeIds = validUserBadges.map(ub => ub.badgeId._id.toString());
     const locked = allBadges.filter(
       badge => !userBadgeIds.includes(badge._id.toString())
     );
+
+    console.log(`   - Locked: ${locked.length}`);
 
     res.status(200).json({
       success: true,
@@ -70,6 +90,7 @@ exports.getMyBadges = async (req, res, next) => {
       }
     });
   } catch (error) {
+    console.error('❌ Error fetching badges:', error);
     next(error);
   }
 };

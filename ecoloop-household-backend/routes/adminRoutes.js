@@ -8,7 +8,12 @@ const {
   getVerifiedNGOs,
   approveNGO,
   rejectNGO,
+  getPendingRecyclers,
+  getVerifiedRecyclers,
+  approveRecycler,
+  rejectRecycler,
   getDonationsOverview,
+  getRecyclesOverview,
   getNGOsOverview,
   getRecyclersOverview,
   getPlatformStats,
@@ -17,9 +22,12 @@ const {
   getAllLocalities,
   getNGORatings,
   getRecyclerRatings,
+  getRecyclerRatingsOverview,
   downloadWeeklyReport,
   downloadDonationReport,
-  downloadNGOPerformanceReport
+  downloadNGOPerformanceReport,
+  downloadRecyclerPerformanceReport,
+  downloadCombinedPartnerReport
 } = require('../controllers/adminController');
 
 const { adminAuth, checkPermission, superAdminOnly } = require('../middleware/adminMiddleware');
@@ -40,8 +48,17 @@ router.get('/ngos/verified', adminAuth, getVerifiedNGOs);
 router.put('/ngos/:ngoId/approve', adminAuth, checkPermission('canVerifyNGO'), approveNGO);
 router.put('/ngos/:ngoId/reject', adminAuth, checkPermission('canVerifyNGO'), rejectNGO);
 
+// ---- Recycler Management ----
+router.get('/recyclers/pending', adminAuth, checkPermission('canVerifyNGO'), getPendingRecyclers);
+router.get('/recyclers/verified', adminAuth, getVerifiedRecyclers);
+router.put('/recyclers/:recyclerId/approve', adminAuth, checkPermission('canVerifyNGO'), approveRecycler);
+router.put('/recyclers/:recyclerId/reject', adminAuth, checkPermission('canVerifyNGO'), rejectRecycler);
+
 // ---- Donations Management ----
 router.get('/donations', adminAuth, checkPermission('canManageDonations'), getDonationsOverview);
+
+// ---- Recycles Management ----
+router.get('/recycles', adminAuth, checkPermission('canManageDonations'), getRecyclesOverview);
 
 // ---- Overview Data ----
 router.get('/overview/ngos', adminAuth, getNGOsOverview);
@@ -55,10 +72,13 @@ router.get('/localities', adminAuth, getAllLocalities);
 // ---- Ratings ----
 router.get('/ratings/ngos', adminAuth, getNGORatings);
 router.get('/ratings/recyclers', adminAuth, getRecyclerRatings);
+router.get('/ratings/recyclers-overview', adminAuth, getRecyclerRatingsOverview);
 
 // ---- Reports (Download Excel) ----
 router.get('/reports/weekly', adminAuth, checkPermission('canDownloadReports'), downloadWeeklyReport);
 router.get('/reports/donations', adminAuth, checkPermission('canDownloadReports'), downloadDonationReport);
 router.get('/reports/ngo-performance', adminAuth, checkPermission('canDownloadReports'), downloadNGOPerformanceReport);
+router.get('/reports/recycler-performance', adminAuth, checkPermission('canDownloadReports'), downloadRecyclerPerformanceReport);
+router.get('/reports/combined-partners', adminAuth, checkPermission('canDownloadReports'), downloadCombinedPartnerReport);
 
 module.exports = router;

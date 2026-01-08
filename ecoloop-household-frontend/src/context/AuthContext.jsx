@@ -180,13 +180,16 @@ export const AuthProvider = ({ children }) => {
     axios.defaults.headers.common.Authorization = `Bearer ${token}`;
     apiClient.defaults.headers.common.Authorization = `Bearer ${token}`;
     
+    // Check if profile completion is needed
+    const needsProfileCompletion = !userData?.profileCompleted && (userRole === 'NGO' || userRole === 'RECYCLER');
+    
     return {
       success: true,
       user: userData,
       data: { user: userData },
       token: token,
       role: userRole,
-      needsProfileCompletion: !userData?.profileCompleted && userRole !== 'RECYCLER'
+      needsProfileCompletion: needsProfileCompletion
     };
   };
 
@@ -223,10 +226,32 @@ export const AuthProvider = ({ children }) => {
      Update Profile
   ========================= */
   const updateProfile = async (profileData) => {
-    const res = await apiClient.put('/auth/profile', profileData);
-    setUser(res.data.data.user);
-    localStorage.setItem('user', JSON.stringify(res.data.data.user));
-    return res.data.data.user;
+    try {
+      // Route to appropriate endpoint based on user role
+      const userRole = localStorage.getItem('userRole') || user?.role || 'HOUSEHOLD';
+      let endpoint = '/auth/profile'; // Default for household
+      
+      if (userRole === 'RECYCLER') {
+        endpoint = '/recycler/auth/profile';
+      } else if (userRole === 'NGO') {
+        endpoint = '/ngo/auth/profile';
+      }
+      
+      console.log(`📝 [Auth] Updating profile via endpoint: ${endpoint}`);
+      
+      const res = await apiClient.put(endpoint, profileData);
+      const updatedUser = res.data.data?.user || res.data.user;
+      
+      setUser(updatedUser);
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+      
+      console.log('✅ [Auth] Profile updated, profileCompleted:', updatedUser?.profileCompleted);
+      
+      return updatedUser;
+    } catch (err) {
+      console.error('❌ [Auth] Update profile error:', err);
+      throw err;
+    }
   };
 
   const refreshUser = async () => {

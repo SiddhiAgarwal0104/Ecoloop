@@ -23,7 +23,19 @@ const uploadToCloudinary = async (file, folder = 'ecoloop/recycler') => {
       return;
     }
 
+    // Check if cloudinary is configured
+    if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY) {
+      console.error('❌ Cloudinary not configured. Missing environment variables:', {
+        CLOUDINARY_CLOUD_NAME: !!process.env.CLOUDINARY_CLOUD_NAME,
+        CLOUDINARY_API_KEY: !!process.env.CLOUDINARY_API_KEY
+      });
+      reject(new Error('Cloudinary is not properly configured. Please check CLOUDINARY_CLOUD_NAME and CLOUDINARY_API_KEY'));
+      return;
+    }
+
     try {
+      console.log(`📤 Starting upload: ${file.originalname} to folder: ${folder}`);
+      
       const stream = cloudinary.uploader.upload_stream(
         {
           folder,
@@ -33,24 +45,41 @@ const uploadToCloudinary = async (file, folder = 'ecoloop/recycler') => {
         },
         (error, result) => {
           if (error) {
-            console.error('❌ Cloudinary upload error:', error);
-            reject(new Error(`Upload failed: ${error.message}`));
+            console.error('❌ Cloudinary upload error:', {
+              message: error.message,
+              status: error.http_code,
+              errorCode: error.error?.error_code
+            });
+            reject(new Error(`Cloudinary upload failed: ${error.message}`));
           } else {
-            console.log(`✅ Image uploaded: ${result.public_id}`);
+            console.log(`✅ Image uploaded successfully:`, {
+              filename: file.originalname,
+              publicId: result.public_id,
+              size: result.bytes,
+              url: result.secure_url
+            });
             resolve(result.secure_url);
           }
         }
       );
 
       stream.on('error', (error) => {
-        console.error('❌ Stream error:', error);
-        reject(error);
+        console.error('❌ Stream error:', error.message);
+        reject(new Error(`Stream error during upload: ${error.message}`));
       });
+
+      // Set timeout for upload
+      setTimeout(() => {
+        if (!stream.writableEnded && !stream.destroyed) {
+          stream.destroy();
+          reject(new Error('Upload timeout - request took too long'));
+        }
+      }, 30000); // 30 second timeout
 
       stream.end(file.buffer);
     } catch (error) {
       console.error('❌ Upload error:', error);
-      reject(error);
+      reject(new Error(`Upload failed: ${error.message}`));
     }
   });
 };
@@ -68,20 +97,27 @@ const uploadToCloudinary = async (file, folder = 'ecoloop/recycler') => {
 const uploadMultipleToCloudinary = async (files, folder = 'ecoloop/recycler') => {
   try {
     if (!files || files.length === 0) {
-      console.warn('⚠️ No files provided for upload');
+      console.log('ℹ️ No files provided - skipping image upload');
       return [];
     }
 
-    console.log(`📤 Uploading ${files.length} images to Cloudinary...`);
+    console.log(`📤 Uploading ${files.length} images to Cloudinary folder: ${folder}`);
 
-    const uploadPromises = files.map((file) => uploadToCloudinary(file, folder));
+    const uploadPromises = files.map((file, index) => {
+      console.log(`  [${index + 1}/${files.length}] Processing: ${file.originalname}`);
+      return uploadToCloudinary(file, folder);
+    });
+
     const urls = await Promise.all(uploadPromises);
 
     console.log(`✅ Successfully uploaded ${urls.length} images`);
     return urls;
   } catch (error) {
-    console.error('❌ Multiple upload error:', error);
-    throw new Error(`Upload failed: ${error.message}`);
+    console.error('❌ Multiple upload failed:', {
+      message: error.message,
+      filesCount: files?.length || 0
+    });
+    throw error;
   }
 };
 

@@ -83,7 +83,7 @@ const RecyclerNavigation = () => {
         { headers: { Authorization: `Bearer ${token}` } }
       );
       alert('✅ Marked as picked up!');
-      navigate('/my-requests');
+      navigate('/recycler/my-requests');
     } catch (err) {
       alert('Error updating status: ' + (err.response?.data?.message || err.message));
     }
@@ -130,7 +130,7 @@ const RecyclerNavigation = () => {
       {/* Header */}
       <div className="flex items-center gap-4">
         <button
-          onClick={() => navigate('/my-requests')}
+          onClick={() => navigate('/recycler/my-requests')}
           className="btn btn-secondary p-2"
         >
           <ArrowLeft size={20} />

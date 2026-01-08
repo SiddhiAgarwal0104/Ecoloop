@@ -65,7 +65,18 @@ const CreateRecycle = () => {
     try {
       const data = new FormData();
       
-      // Append all form fields
+      // Append all form fields with proper console logging
+      console.log('📝 Form Data before submission:', {
+        wasteCategory: formData.wasteCategory,
+        wasteType: formData.wasteType,
+        quantity: formData.quantity,
+        unit: formData.unit,
+        address: formData.address,
+        latitude: formData.latitude,
+        longitude: formData.longitude,
+        imagesCount: images.length
+      });
+      
       data.append('wasteCategory', formData.wasteCategory);
       data.append('wasteType', formData.wasteType);
       data.append('quantity', formData.quantity);
@@ -76,10 +87,12 @@ const CreateRecycle = () => {
       data.append('longitude', formData.longitude);
 
       // Append images
-      images.forEach(image => {
+      images.forEach((image, index) => {
+        console.log(`📸 Adding image ${index + 1}:`, image.name);
         data.append('images', image);
       });
 
+      console.log('📤 Sending request to /recycle...');
       const response = await axios.post('/recycle', data, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
@@ -87,8 +100,24 @@ const CreateRecycle = () => {
       console.log('✅ Recycle request created:', response.data);
       navigate('/recycles');
     } catch (error) {
-      console.error('❌ Failed to create recycle:', error);
-      alert(error.response?.data?.error || 'Failed to create recycle request');
+      console.error('❌ Failed to create recycle:', {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        message: error.message
+      });
+      
+      // Try to extract the most helpful error message
+      let errorMsg = 'Failed to create recycle request';
+      if (error.response?.data?.message) {
+        errorMsg = error.response.data.message;
+      } else if (error.response?.data?.error) {
+        errorMsg = error.response.data.error;
+      } else if (error.response?.statusText) {
+        errorMsg = error.response.statusText;
+      }
+      
+      alert(errorMsg);
     } finally {
       setLoading(false);
     }

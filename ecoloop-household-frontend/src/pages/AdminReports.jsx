@@ -108,6 +108,66 @@ const AdminReports = () => {
     }
   };
 
+  const handleDownloadRecyclerReport = async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('adminToken');
+
+      const response = await axios.get(
+        'http://localhost:5000/api/admin/reports/recycler-performance',
+        {
+          headers: { Authorization: `Bearer ${token}` },
+          responseType: 'blob'
+        }
+      );
+
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `recycler_performance_report_${new Date().toISOString().split('T')[0]}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode.removeChild(link);
+
+      alert('Report downloaded successfully');
+    } catch (error) {
+      console.error('Error downloading report:', error);
+      alert('Failed to download report');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDownloadCombinedReport = async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('adminToken');
+
+      const response = await axios.get(
+        'http://localhost:5000/api/admin/reports/combined-partners',
+        {
+          headers: { Authorization: `Bearer ${token}` },
+          responseType: 'blob'
+        }
+      );
+
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `combined_partner_report_${new Date().toISOString().split('T')[0]}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode.removeChild(link);
+
+      alert('Report downloaded successfully');
+    } catch (error) {
+      console.error('Error downloading report:', error);
+      alert('Failed to download report');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <AdminLayout>
       <div className="mb-8">
@@ -286,6 +346,94 @@ const AdminReports = () => {
               <>
                 <Download size={20} />
                 Download NGO Performance Report
+              </>
+            )}
+          </button>
+        </div>
+
+        {/* Recycler Performance Report Card */}
+        <div className="card lg:col-span-2">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="bg-green-600 p-3 rounded-xl">
+              <Calendar className="text-white" size={24} />
+            </div>
+            <h2 className="text-2xl font-bold text-eco-dark">♻️ Recycler Performance Report</h2>
+          </div>
+
+          <p className="text-gray-600 mb-6">
+            Detailed performance metrics for all verified recyclers including ratings, recycling actions completed, and total waste collected.
+          </p>
+
+          <div className="p-4 bg-green-50 rounded-lg mb-6 border border-green-200">
+            <p className="text-sm text-green-800">
+              ✓ Shows verification status and approval dates
+            </p>
+            <p className="text-sm text-green-800">
+              ✓ Includes average ratings and review counts
+            </p>
+            <p className="text-sm text-green-800">
+              ✓ Tracks recycling completed and total waste collected (KG)
+            </p>
+          </div>
+
+          <button
+            onClick={handleDownloadRecyclerReport}
+            disabled={loading}
+            className="btn-primary w-full flex items-center justify-center gap-2"
+          >
+            {loading ? (
+              <>
+                <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-white"></div>
+                Generating...
+              </>
+            ) : (
+              <>
+                <Download size={20} />
+                Download Recycler Performance Report
+              </>
+            )}
+          </button>
+        </div>
+
+        {/* Combined Partners Report Card */}
+        <div className="card lg:col-span-2">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="bg-indigo-600 p-3 rounded-xl">
+              <Calendar className="text-white" size={24} />
+            </div>
+            <h2 className="text-2xl font-bold text-eco-dark">🤝 Combined Partners Report (NGO + Recyclers)</h2>
+          </div>
+
+          <p className="text-gray-600 mb-6">
+            All-in-one comprehensive report combining both NGO and Recycler performance data with comparative metrics and summary statistics.
+          </p>
+
+          <div className="p-4 bg-indigo-50 rounded-lg mb-6 border border-indigo-200">
+            <p className="text-sm text-indigo-800">
+              ✓ Separate sheets for NGOs and Recyclers
+            </p>
+            <p className="text-sm text-indigo-800">
+              ✓ Side-by-side comparison of both programs
+            </p>
+            <p className="text-sm text-indigo-800">
+              ✓ Summary statistics and performance metrics
+            </p>
+          </div>
+
+          <button
+            onClick={handleDownloadCombinedReport}
+            disabled={loading}
+            className="btn-primary w-full flex items-center justify-center gap-2"
+          >
+            {loading ? (
+              <>
+                <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-white"></div>
+                Generating...
+              </>
+            ) : (
+              <>
+                <Download size={20} />
+                Download Combined Partners Report
               </>
             )}
           </button>

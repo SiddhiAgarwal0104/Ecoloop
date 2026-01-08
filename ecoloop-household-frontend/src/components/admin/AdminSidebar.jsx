@@ -37,9 +37,19 @@ const AdminSidebar = ({ onLogout }) => {
       path: '/admin/recyclers'
     },
     {
+      label: 'Recycles',
+      icon: Recycle,
+      path: '/admin/recycles'
+    },
+    {
       label: 'NGO Ratings',
       icon: Star,
       path: '/admin/ngo-ratings'
+    },
+    {
+      label: 'Recycler Ratings',
+      icon: Star,
+      path: '/admin/recycler-ratings'
     },
     {
       label: 'Leaderboard',

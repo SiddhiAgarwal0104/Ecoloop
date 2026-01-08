@@ -10,11 +10,12 @@ const {
 // All routes require authentication
 router.use(protect);
 
+// @route   GET /api/badges/my
+// MUST come before /:id to avoid catch-all issues
+router.get('/my', getMyBadges);
+
 // @route   GET /api/badges
 router.get('/', getAllBadges);
-
-// @route   GET /api/badges/my
-router.get('/my', getMyBadges);
 
 // @route   GET /api/badges/:id
 router.get('/:id', getBadgeById);

@@ -28,16 +28,16 @@ const PrivateRoute = ({ allowedRoles = [] }) => {
   const profileComplete = user?.profileCompleted === true;
   const isProfileCompletionPage = location.pathname === '/profile/complete';
   const isNGO = user?.role === 'NGO';
+  const isRecycler = user?.role === 'RECYCLER';
 
   // Allow access to profile completion page
   if (isProfileCompletionPage) {
     return <Outlet />;
   }
 
-  // Only redirect to profile completion if NGO and not yet completed
-  // RECYCLER and HOUSEHOLD go straight to dashboard after login
-  if (isNGO && !profileComplete) {
-    console.log('🔄 NGO profile incomplete, redirecting to completion');
+  // Redirect to profile completion if profile not complete (NGO or RECYCLER)
+  if ((isNGO || isRecycler) && !profileComplete) {
+    console.log(`🔄 ${isNGO ? 'NGO' : 'RECYCLER'} profile incomplete, redirecting to completion`);
     return <Navigate to="/profile/complete" replace />;
   }
 
@@ -54,6 +54,35 @@ const PrivateRoute = ({ allowedRoles = [] }) => {
           </h2>
           <p className="text-gray-600 mb-6">
             Your NGO profile is awaiting admin verification. You'll receive an email once approved.
+          </p>
+          <button
+            onClick={() => {
+              localStorage.removeItem('token');
+              localStorage.removeItem('user');
+              window.location.href = '/login';
+            }}
+            className="px-6 py-2 bg-eco-main text-white rounded-lg hover:bg-eco-dark transition-colors"
+          >
+            Back to Login
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // RECYCLER verification check
+  if (user.role === 'RECYCLER' && !user.isVerified) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+        <div className="bg-white rounded-lg shadow-xl p-8 max-w-md text-center">
+          <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <span className="text-3xl">⏳</span>
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">
+            Verification Pending
+          </h2>
+          <p className="text-gray-600 mb-6">
+            Your recycler profile is awaiting admin verification from your city. You'll receive an email once approved. This typically takes 24-48 hours.
           </p>
           <button
             onClick={() => {

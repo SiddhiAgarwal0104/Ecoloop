@@ -243,7 +243,14 @@ const Register = () => {
             </p>
           </div>
         )}
-
+        {/* Recycler Verification Info */}
+{formData.role === 'RECYCLER' && (
+  <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-xl">
+    <p className="text-sm text-blue-800">
+      <span className="font-semibold">ℹ️ Recycler Verification:</span> After registration, you'll complete your profile and an admin from your city will review your details. You'll receive an email once approved.
+    </p>
+  </div>
+)}
         {/* Google Sign-In */}
         <div className="mb-6">
           <GoogleLogin

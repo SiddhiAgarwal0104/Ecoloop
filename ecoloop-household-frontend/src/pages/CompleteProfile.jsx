@@ -17,20 +17,15 @@ const CompleteProfile = () => {
   const isRecycler = user?.role === 'RECYCLER';
   const isHousehold = user?.role === 'HOUSEHOLD';
 
-  // Recyclers don't need profile completion - redirect to dashboard
+  // Only redirect household users if profile is completed
   useEffect(() => {
-    if (authLoading) return; // Wait for auth to load
-    
-    if (isRecycler) {
-      console.log('🚴 Recycler detected on profile completion page - redirecting to dashboard');
-      navigate('/recycler/dashboard', { replace: true });
-    }
+    if (authLoading) return;
     
     if (isHousehold && user?.profileCompleted) {
       console.log('🏠 Household user with completed profile - redirecting to dashboard');
       navigate('/dashboard', { replace: true });
     }
-  }, [isRecycler, isHousehold, authLoading, user?.profileCompleted, navigate]);
+  }, [isHousehold, authLoading, user?.profileCompleted, navigate]);
 
   // Show loading while auth is loading
   if (authLoading || !user) {
@@ -41,8 +36,8 @@ const CompleteProfile = () => {
     );
   }
 
-  // Prevent recyclers from ever seeing this page
-  if (isRecycler) {
+  // Prevent non-NGO/RECYCLER/HOUSEHOLD from seeing this page
+  if (!isNGO && !isRecycler && !isHousehold) {
     return null;
   }
 
@@ -143,13 +138,16 @@ const CompleteProfile = () => {
       
       console.log('✅ [Profile] Profile completed:', response);
 
-      // Role-based navigation
+      // ✅ ROLE-BASED NAVIGATION
       if (isNGO) {
         alert('✅ Profile completed successfully!\n\nYour NGO has been submitted for verification. An admin from your city will review your profile and approve it soon.\n\nYou will receive an email once approved and can then login to access donations.');
         navigate('/login');
       } else if (isRecycler) {
-        navigate('/recycler/dashboard');
+        // ✅ SAME FLOW AS NGO - VERIFICATION REQUIRED
+        alert('✅ Profile completed successfully!\n\nYour recycler profile has been submitted for verification. An admin from your city (' + formData.city + ') will review your profile and approve it within 24-48 hours.\n\nYou will receive an email once verified and can then login to access your dashboard.');
+        navigate('/login');
       } else {
+        // Household - direct access
         navigate('/dashboard');
       }
 
@@ -171,23 +169,23 @@ const CompleteProfile = () => {
             {isNGO ? '❤️' : isRecycler ? '♻️' : '🏠'}
           </div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            {isNGO ? 'Complete Your NGO Profile' : 'Complete Your Profile'}
+            {isNGO ? 'Complete Your NGO Profile' : isRecycler ? 'Complete Your Recycler Profile' : 'Complete Your Profile'}
           </h1>
           <p className="text-gray-600">
             {isNGO 
               ? 'Help us verify your NGO and connect you with donors'
               : isRecycler
-              ? 'Set up your recycling service area'
+              ? 'Set up your recycling service area for admin verification'
               : 'We need your location to match you with nearby services'
             }
           </p>
         </div>
 
-        {/* NGO Verification Info */}
-        {isNGO && (
+        {/* NGO/Recycler Verification Info */}
+        {(isNGO || isRecycler) && (
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
             <p className="text-blue-800 text-sm">
-              <strong>📍 Important:</strong> After profile completion, an admin from your city will review and approve your NGO. This helps us maintain quality service. You'll receive an email once approved.
+              <strong>📍 Important:</strong> After profile completion, an admin from your city will review and approve your {isNGO ? 'NGO' : 'recycler profile'}. This helps us maintain quality service. You'll receive an email once approved.
             </p>
           </div>
         )}
@@ -309,14 +307,17 @@ const CompleteProfile = () => {
             </div>
           )}
 
-          {/* Location Picker - Optional for Households */}
-          {isHousehold && (
+          {/* Location Picker - Optional for Households & Recyclers */}
+          {(isHousehold || isRecycler) && (
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">
-                📍 Your Location (Optional)
+                📍 Your Location {isRecycler ? '(Optional)' : '(Optional)'}
               </label>
               <p className="text-xs text-gray-600 mb-3">
-                Setting your location helps us match you with nearby services
+                {isRecycler 
+                  ? 'Setting your location helps us match you with nearby requests'
+                  : 'Setting your location helps us match you with nearby services'
+                }
               </p>
               
               <LocationPicker onLocationSelect={handleLocationSelect} />
@@ -343,7 +344,7 @@ const CompleteProfile = () => {
 
         {/* Footer Note */}
         <p className="text-center text-xs text-gray-500 mt-6">
-          {isNGO 
+          {isNGO || isRecycler
             ? '* Your profile will be reviewed by city admin before approval'
             : '* All information can be updated later from your profile settings'
           }

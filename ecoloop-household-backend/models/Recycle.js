@@ -71,6 +71,14 @@ const recycleSchema = new mongoose.Schema({
   acceptedAt: {
     type: Date,
     default: null
+  },
+  pickedUpAt: {
+    type: Date,
+    default: null
+  },
+  completedAt: {
+    type: Date,
+    default: null
   }
 }, {
   timestamps: true

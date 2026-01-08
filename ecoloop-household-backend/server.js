@@ -61,6 +61,7 @@ app.use('/api/badges', require('./routes/badgeRoutes'));
 app.use('/api/chatbot', require('./routes/chatbotRoutes'));
 app.use('/api/community', require('./routes/requestRoutes'));
 app.use('/api/ngo-ratings', require('./routes/ngoRatingRoutes'));
+app.use('/api/recycler-ratings', require('./routes/recyclerRatingRoutes'));
 
 
 /**

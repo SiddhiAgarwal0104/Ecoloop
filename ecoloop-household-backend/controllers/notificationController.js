@@ -2,17 +2,26 @@ const Notification = require('../models/Notification');
 const AppError = require('../utils/appError');
 
 /**
- * Get all notifications for logged-in recycler
- * @route GET /api/recycler/notifications
- * @access Private (Recycler only)
+ * Get all notifications for logged-in user (household or recycler)
+ * @route GET /api/notifications
+ * @access Private
  */
 exports.getMyNotifications = async (req, res, next) => {
   try {
-    const recyclerId = req.user?.id;
+    const userId = req.user?.id;
+    const userRole = req.user?.role;
 
+    console.log(`📬 Fetching notifications for ${userRole} user ${userId}`);
+
+    // Query notifications for this user (works for both household and recycler)
     const notifications = await Notification.find({
-      recyclerId: recyclerId
+      $or: [
+        { userId: userId },
+        { recyclerId: userId }
+      ]
     }).sort({ createdAt: -1 });
+
+    console.log(`✅ Found ${notifications.length} notifications`);
 
     res.status(200).json({
       success: true,

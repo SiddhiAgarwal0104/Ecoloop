@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { MapPin, Calendar, Package, Eye, ArrowRight, AlertCircle, Navigation, X, Copy } from 'lucide-react';
+import { MapPin, Calendar, Package, Eye, ArrowRight, AlertCircle, Navigation, X, Copy, CheckCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import axios from '../api/axios';
 
@@ -14,6 +14,7 @@ const RecyclerMyRecycles = () => {
   const [error, setError] = useState('');
   const [filter, setFilter] = useState('all');
   const [selectedRequest, setSelectedRequest] = useState(null);
+  const [markingComplete, setMarkingComplete] = useState(null);
 
   useEffect(() => {
     fetchMyRequests();
@@ -59,6 +60,36 @@ const RecyclerMyRecycles = () => {
       setRequests([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  /**
+   * Mark request as complete (recycled)
+   */
+  const handleMarkAsComplete = async (requestId) => {
+    setMarkingComplete(requestId);
+    try {
+      console.log(`📤 Marking request ${requestId} as complete...`);
+      const response = await axios.put(`/recycler/requests/${requestId}/complete`, {});
+      console.log('✅ Request marked as complete:', response.data);
+      
+      // Update local state
+      setRequests(requests.map(r => 
+        r._id === requestId ? { ...r, status: 'RECYCLED' } : r
+      ));
+      
+      // Close modal if it's the selected request
+      if (selectedRequest?._id === requestId) {
+        setSelectedRequest({ ...selectedRequest, status: 'RECYCLED' });
+      }
+      
+      alert('✅ Request marked as recycled successfully!');
+    } catch (err) {
+      console.error('❌ Failed to mark request as complete:', err);
+      const errorMsg = err.response?.data?.message || err.message || 'Failed to update request status';
+      alert(`❌ Error: ${errorMsg}`);
+    } finally {
+      setMarkingComplete(null);
     }
   };
 
@@ -233,24 +264,46 @@ const RecyclerMyRecycles = () => {
 
               {/* Footer */}
               <div className="mt-4 space-y-2">
-                <button 
-                  onClick={() => {
-                    console.log(`🗺️ Navigating to /recycler/navigate/${request._id}`);
-                    navigate(`/recycler/navigate/${request._id}`);
-                  }}
-                  className="btn btn-success w-full justify-center"
-                >
-                  <Navigation size={18} />
-                  <span>Navigate</span>
-                  <ArrowRight size={18} />
-                </button>
-                <button 
-                  onClick={() => setSelectedRequest(request)}
-                  className="btn btn-secondary w-full justify-center"
-                >
-                  <Eye size={18} />
-                  <span>View Details</span>
-                </button>
+                {request.status === 'PICKED_UP' ? (
+                  <>
+                    <button 
+                      onClick={() => handleMarkAsComplete(request._id)}
+                      disabled={markingComplete === request._id}
+                      className="btn btn-success w-full justify-center disabled:opacity-50"
+                    >
+                      <CheckCircle size={18} />
+                      <span>{markingComplete === request._id ? 'Marking...' : 'Mark as Complete'}</span>
+                    </button>
+                    <button 
+                      onClick={() => setSelectedRequest(request)}
+                      className="btn btn-secondary w-full justify-center"
+                    >
+                      <Eye size={18} />
+                      <span>View Details</span>
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button 
+                      onClick={() => {
+                        console.log(`🗺️ Navigating to /recycler/navigate/${request._id}`);
+                        navigate(`/recycler/navigate/${request._id}`);
+                      }}
+                      className="btn btn-success w-full justify-center"
+                    >
+                      <Navigation size={18} />
+                      <span>Navigate</span>
+                      <ArrowRight size={18} />
+                    </button>
+                    <button 
+                      onClick={() => setSelectedRequest(request)}
+                      className="btn btn-secondary w-full justify-center"
+                    >
+                      <Eye size={18} />
+                      <span>View Details</span>
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           ))
@@ -406,22 +459,46 @@ const RecyclerMyRecycles = () => {
 
               {/* Action Buttons */}
               <div className="grid grid-cols-2 gap-3 pt-4 border-t border-gray-200">
-                <button
-                  onClick={() => {
-                    setSelectedRequest(null);
-                    navigate(`/navigate/${selectedRequest._id}`);
-                  }}
-                  className="btn btn-success justify-center"
-                >
-                  <Navigation size={18} />
-                  Navigate
-                </button>
-                <button
-                  onClick={() => setSelectedRequest(null)}
-                  className="btn btn-secondary justify-center"
-                >
-                  Close
-                </button>
+                {selectedRequest.status === 'PICKED_UP' ? (
+                  <>
+                    <button
+                      onClick={() => {
+                        setSelectedRequest(null);
+                        handleMarkAsComplete(selectedRequest._id);
+                      }}
+                      disabled={markingComplete === selectedRequest._id}
+                      className="btn btn-success justify-center disabled:opacity-50"
+                    >
+                      <CheckCircle size={18} />
+                      {markingComplete === selectedRequest._id ? 'Marking...' : 'Mark Complete'}
+                    </button>
+                    <button
+                      onClick={() => setSelectedRequest(null)}
+                      className="btn btn-secondary justify-center"
+                    >
+                      Close
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      onClick={() => {
+                        setSelectedRequest(null);
+                        navigate(`/navigate/${selectedRequest._id}`);
+                      }}
+                      className="btn btn-success justify-center"
+                    >
+                      <Navigation size={18} />
+                      Navigate
+                    </button>
+                    <button
+                      onClick={() => setSelectedRequest(null)}
+                      className="btn btn-secondary justify-center"
+                    >
+                      Close
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           </div>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Building2, Recycle, Gift, Star, MessageSquare } from 'lucide-react';
+import { Users, Building2, Recycle, Gift, Star, MessageSquare, CheckCircle, Clock } from 'lucide-react';
 import AdminLayout from '../components/admin/AdminLayout';
 import StatsCard from '../components/admin/StatsCard';
 import NGORatingsAdmin from '../components/NGORatingsAdmin';
@@ -29,15 +29,27 @@ const AdminDashboard = () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('adminToken');
+      console.log('📡 [AdminDashboard] Fetching platform stats with token:', !!token);
+      
       const response = await axios.get('http://localhost:5000/api/admin/stats/platform', {
         headers: { Authorization: `Bearer ${token}` }
       });
 
-      console.log('📊 [AdminDashboard] Platform stats fetched:', response.data.data);
+      console.log('✅ [AdminDashboard] Platform stats fetched successfully:', response.data.data);
+      
+      if (response.data.data) {
+        console.log('   - City:', response.data.data.city);
+        console.log('   - Users:', response.data.data.users);
+        console.log('   - Donations:', response.data.data.donations);
+        console.log('   - Recycling:', response.data.data.recycling);
+      }
+      
       setStats(response.data.data);
       setError(null);
     } catch (err) {
       console.error('❌ [AdminDashboard] Error fetching stats:', err);
+      console.error('   - Status:', err.response?.status);
+      console.error('   - Message:', err.response?.data?.message);
       setError(err.response?.data?.message || 'Failed to fetch statistics');
     } finally {
       setLoading(false);
@@ -108,99 +120,126 @@ const AdminDashboard = () => {
         <p className="text-gray-600">Welcome to the EcoLoop Admin Control Center</p>
       </div>
 
-      {/* Platform Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <StatsCard
-          title="Total Households"
-          value={stats?.users?.totalHouseholds || 0}
-          icon={Users}
-          color="eco-main"
-        />
-        <StatsCard
-          title="Total NGOs"
-          value={stats?.users?.totalNGOs || 0}
-          icon={Building2}
-          color="eco-main"
-        />
-        <StatsCard
-          title="Verified NGOs"
-          value={stats?.users?.verifiedNGOs || 0}
-          icon={Building2}
-          color="eco-main"
-        />
-        <StatsCard
-          title="Total Recyclers"
-          value={stats?.users?.totalRecyclers || 0}
-          icon={Recycle}
-          color="eco-main"
-        />
+      {/* Platform Stats - User Section */}
+      <div className="mb-8">
+        <h2 className="text-2xl font-bold text-eco-dark mb-4">👥 Users Overview</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+          <StatsCard
+            title="Total Households"
+            value={stats?.users?.totalHouseholds || 0}
+            icon={Users}
+            color="eco-main"
+          />
+          <StatsCard
+            title="Total Recyclers"
+            value={stats?.users?.totalRecyclers || 0}
+            icon={Recycle}
+            color="eco-main"
+          />
+          <StatsCard
+            title="Verified Recyclers"
+            value={stats?.users?.verifiedRecyclers || 0}
+            icon={CheckCircle}
+            color="eco-main"
+          />
+          <StatsCard
+            title="Total NGOs"
+            value={stats?.users?.totalNGOs || 0}
+            icon={Building2}
+            color="eco-main"
+          />
+          <StatsCard
+            title="Verified NGOs"
+            value={stats?.users?.verifiedNGOs || 0}
+            icon={CheckCircle}
+            color="eco-main"
+          />
+        </div>
       </div>
 
-      {/* Donations Stats */}
+      {/* Donations vs Recycling - Side by Side */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+        {/* Donations Section */}
+        <div>
+          <h2 className="text-2xl font-bold text-eco-dark mb-4">🎁 Donation Program Stats</h2>
+          <div className="space-y-4">
+            <StatsCard
+              title="Total Donations"
+              value={stats?.donations?.total || 0}
+              icon={Gift}
+              color="eco-main"
+            />
+            <StatsCard
+              title="Completed Donations"
+              value={stats?.donations?.completed || 0}
+              icon={CheckCircle}
+              color="eco-main"
+            />
+            <StatsCard
+              title="Pending Donations"
+              value={stats?.donations?.pending || 0}
+              icon={Clock}
+              color="eco-main"
+            />
+          </div>
+        </div>
+
+        {/* Recycling Section */}
+        <div>
+          <h2 className="text-2xl font-bold text-eco-dark mb-4">♻️ Recycling Program Stats</h2>
+          <div className="space-y-4">
+            <StatsCard
+              title="Total Recycle Actions"
+              value={stats?.recycling?.total || 0}
+              icon={Recycle}
+              color="eco-main"
+            />
+            <StatsCard
+              title="Completed Pickups"
+              value={stats?.recycling?.completed || 0}
+              icon={CheckCircle}
+              color="eco-main"
+            />
+            <StatsCard
+              title="Pending Requests"
+              value={stats?.recycling?.pending || 0}
+              icon={Clock}
+              color="eco-main"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Quick Actions - Balanced */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <StatsCard
-          title="Total Donations"
-          value={stats?.donations?.total || 0}
-          icon={Gift}
-          color="eco-main"
-        />
-        <StatsCard
-          title="Completed Donations"
-          value={stats?.donations?.completed || 0}
-          icon={Gift}
-          color="eco-main"
-        />
-        <StatsCard
-          title="Pending Donations"
-          value={stats?.donations?.pending || 0}
-          icon={Gift}
-          color="eco-main"
-        />
-      </div>
-
-      {/* Recycling Stats */}
-      <div className="grid grid-cols-1 gap-6 mb-8">
-        <StatsCard
-          title="Total Recycle Actions"
-          value={stats?.recycling?.total || 0}
-          icon={Recycle}
-          color="eco-main"
-        />
-      </div>
-
-      {/* Quick Links */}
-      <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div className="card text-center">
-          <h3 className="text-lg font-semibold text-eco-dark mb-4">Pending NGO Verifications</h3>
-          <p className="text-4xl font-bold text-eco-main mb-4">{stats?.users?.totalNGOs - stats?.users?.verifiedNGOs || 0}</p>
-          <a
-            href="/admin/ngos"
-            className="btn-primary inline-block"
-          >
-            Review Now
-          </a>
+        <div className="card bg-gradient-to-br from-blue-50 to-blue-100 border-l-4 border-blue-500">
+          <div className="flex items-start justify-between mb-4">
+            <Building2 className="text-blue-600" size={32} />
+            <span className="text-3xl font-bold text-blue-600">{stats?.users?.totalNGOs - stats?.users?.verifiedNGOs || 0}</span>
+          </div>
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">Pending NGO Verifications</h3>
+          <p className="text-gray-600 text-sm mb-4">Review and approve NGOs</p>
+          <a href="/admin/ngos" className="btn btn-primary w-full text-center">Review Now</a>
         </div>
 
-        <div className="card text-center">
-          <h3 className="text-lg font-semibold text-eco-dark mb-4">Pending Donations</h3>
-          <p className="text-4xl font-bold text-orange-500 mb-4">{stats?.donations?.pending || 0}</p>
-          <a
-            href="/admin/donations"
-            className="btn-primary inline-block"
-          >
-            View Donations
-          </a>
+        <div className="card bg-gradient-to-br from-purple-50 to-purple-100 border-l-4 border-purple-500">
+          <div className="flex items-start justify-between mb-4">
+            <Recycle className="text-purple-600" size={32} />
+            <span className="text-3xl font-bold text-purple-600">{stats?.recycling?.pending || 0}</span>
+          </div>
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">Pending Recycler Verifications</h3>
+          <p className="text-gray-600 text-sm mb-4">Approve recycler profiles</p>
+          <a href="/admin/recyclers" className="btn btn-primary w-full text-center">Review Now</a>
         </div>
 
-        <div className="card text-center">
-          <h3 className="text-lg font-semibold text-eco-dark mb-4">Download Reports</h3>
-          <p className="text-gray-600 mb-4">Generate weekly platform activity reports</p>
-          <a
-            href="/admin/reports"
-            className="btn-primary inline-block"
-          >
-            Generate Report
-          </a>
+        <div className="card bg-gradient-to-br from-orange-50 to-orange-100 border-l-4 border-orange-500">
+          <div className="flex items-start justify-between mb-4">
+            <Gift className="text-orange-600" size={32} />
+            <span className="text-3xl font-bold text-orange-600">{stats?.donations?.pending || 0}</span>
+          </div>
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">Pending Donations</h3>
+          <p className="text-gray-600 text-sm mb-4">Review donation pickups</p>
+          <a href="/admin/donations" className="btn btn-primary w-full text-center">View Now</a>
         </div>
       </div>
 

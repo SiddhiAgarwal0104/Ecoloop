@@ -45,6 +45,12 @@ const recyclerSchema = new mongoose.Schema({
     trim: true
   },
 
+  city: {
+    type: String,
+    trim: true,
+    index: true // Index for city-based admin routing
+  },
+
   locality: {
     type: String,
     trim: true,
@@ -100,6 +106,44 @@ const recyclerSchema = new mongoose.Schema({
   isVerified: {
     type: Boolean,
     default: false
+  },
+
+  profileCompleted: {
+    type: Boolean,
+    default: false
+  },
+
+  role: {
+    type: String,
+    enum: ['RECYCLER'],
+    default: 'RECYCLER'
+  },
+
+  verificationStatus: {
+    type: String,
+    enum: ['PENDING', 'APPROVED', 'REJECTED'],
+    default: 'PENDING'
+  },
+
+  verificationRejectionReason: {
+    type: String,
+    default: null
+  },
+
+  verificationRequestedAt: {
+    type: Date,
+    default: Date.now
+  },
+
+  verificationApprovedAt: {
+    type: Date,
+    default: null
+  },
+
+  verificationApprovedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Admin',
+    default: null
   },
 
   isActive: {

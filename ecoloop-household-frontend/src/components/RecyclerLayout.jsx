@@ -1,9 +1,9 @@
 import React from 'react';
 import { Link, useNavigate, useLocation, Outlet } from 'react-router-dom';
-import { useRecyclerAuth } from '../context/RecyclerAuthContext';
+import { useAuth } from '../context/AuthContext';
 
 const RecyclerLayout = () => {
-  const { user, logout } = useRecyclerAuth();
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -25,11 +25,10 @@ const RecyclerLayout = () => {
 
         <nav className="mt-6">
           {[
-            ['/dashboard', 'Dashboard'],
-            ['/requests', 'Available Requests'],
-            ['/accepted-requests', 'My Requests'],
-            ['/statistics', 'Statistics'],
-            ['/profile', 'Profile'],
+            ['/recycler/dashboard', 'Dashboard'],
+            ['/recycler/requests', 'Available Requests'],
+            ['/recycler/my-requests', 'My Requests'],
+            ['/recycler/profile', 'Profile'],
           ].map(([path, label]) => (
             <Link
               key={path}

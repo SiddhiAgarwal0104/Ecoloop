@@ -6,16 +6,15 @@ const {
   deleteNotification,
   clearAllNotifications
 } = require('../controllers/notificationController');
-const { protect, restrictTo } = require('../middleware/authMiddleware');
+const { protect } = require('../middleware/authMiddleware');
 
 /**
- * Recycler Notification Routes
- * All routes require authentication
+ * Notification Routes
+ * All routes require authentication (works for HOUSEHOLD, RECYCLER, NGO)
  */
 
-// Protect all routes - Recycler only
+// Protect all routes - all authenticated users
 router.use(protect);
-router.use(restrictTo('RECYCLER'));
 
 // Get all notifications
 router.get('/', getMyNotifications);

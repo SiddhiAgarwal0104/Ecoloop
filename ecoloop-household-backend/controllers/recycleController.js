@@ -8,8 +8,12 @@ const { updateUserStats } = require('./rewardsController');
 // @access  Private (Household only)
 exports.createRecycleRequest = async (req, res, next) => {
   try {
-    console.log('📥 Request body:', req.body);
-    console.log('📸 Files received:', req.files?.length || 0);
+    console.log('📥 Create recycle request:', {
+      userId: req.user?.id,
+      userRole: req.user?.role,
+      body: req.body,
+      filesCount: req.files?.length || 0
+    });
 
     const {
       wasteCategory,
@@ -24,6 +28,7 @@ exports.createRecycleRequest = async (req, res, next) => {
 
     // Validate required fields
     if (!wasteCategory || !wasteType || !quantity || !address || !latitude || !longitude) {
+      console.error('❌ Missing required fields:', { wasteCategory, wasteType, quantity, address, latitude, longitude });
       return next(new AppError('Please provide all required fields', 400));
     }
 
@@ -33,14 +38,15 @@ exports.createRecycleRequest = async (req, res, next) => {
       console.log('📤 Uploading images to Cloudinary...');
       try {
         imageUrls = await uploadMultipleToCloudinary(req.files, 'ecoloop/recycle');
-        console.log('✅ Images uploaded successfully:', imageUrls);
+        console.log('✅ Images uploaded successfully:', imageUrls.length);
       } catch (uploadError) {
-        console.error('❌ Image upload failed:', uploadError);
+        console.error('❌ Image upload failed:', uploadError.message);
         return next(new AppError(`Image upload failed: ${uploadError.message}`, 500));
       }
     }
 
     // Create recycle request
+    console.log('💾 Creating Recycle document...');
     const recycleRequest = await Recycle.create({
       userId: req.user.id,
       wasteCategory: wasteCategory.toUpperCase(),
@@ -58,13 +64,22 @@ exports.createRecycleRequest = async (req, res, next) => {
       assignedRecycler: null
     });
 
-    // ✅ UPDATE USER STATS (AWARD POINTS FOR CREATING RECYCLE REQUEST)
-    await updateUserStats(req.user.id, 'RECYCLE_CREATED', {
-      quantity: recycleRequest.quantity,
-      wasteCategory: recycleRequest.wasteCategory
-    });
+    console.log('✅ Recycle document created:', recycleRequest._id);
 
-    console.log('✅ Recycle request created:', recycleRequest._id);
+    // ✅ UPDATE USER STATS (AWARD POINTS FOR CREATING RECYCLE REQUEST)
+    console.log('📊 Updating user stats...');
+    try {
+      await updateUserStats(req.user.id, 'RECYCLE_CREATED', {
+        quantity: recycleRequest.quantity,
+        wasteCategory: recycleRequest.wasteCategory
+      });
+      console.log('✅ User stats updated');
+    } catch (statsError) {
+      console.error('⚠️ Failed to update user stats:', statsError.message);
+      // Don't fail the request if stats update fails
+    }
+
+    console.log('✅ Recycle request created successfully:', recycleRequest._id);
 
     res.status(201).json({
       success: true,
@@ -72,7 +87,11 @@ exports.createRecycleRequest = async (req, res, next) => {
       data: { recycleRequest }
     });
   } catch (error) {
-    console.error('❌ Error creating recycle request:', error);
+    console.error('❌ Error creating recycle request:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name
+    });
     next(error);
   }
 };

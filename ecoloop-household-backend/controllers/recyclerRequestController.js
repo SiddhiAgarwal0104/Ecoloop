@@ -20,19 +20,39 @@ exports.getAvailableRequests = async (req, res, next) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
+    const recyclerId = req.user?.id;
 
-    // Get total count of available requests (not yet assigned to any recycler)
-    const totalCount = await Recycle.countDocuments({ status: 'AVAILABLE', assignedRecycler: null });
+    // Get recycler's city from their profile
+    let recyclerCity = null;
+    if (recyclerId) {
+      const recycler = await Recycler.findById(recyclerId).select('city locality');
+      recyclerCity = recycler?.city;
+      console.log(`🚴 Recycler city: ${recyclerCity || 'not set'}`);
+    }
 
-    // Fetch available requests from Recycle model (not RequestAcceptance)
-    const requests = await Recycle.find({ status: 'AVAILABLE', assignedRecycler: null })
+    // Build query - filter by available requests
+    let query = { status: 'AVAILABLE', assignedRecycler: null };
+
+    // If recycler has city set, filter by city in pickup address
+    if (recyclerCity) {
+      query['pickupLocation.address'] = { $regex: recyclerCity, $options: 'i' };
+      console.log(`🏙️ Filtering available requests for city: ${recyclerCity}`);
+    } else {
+      console.log('⚠️ Recycler city not set - showing all available requests');
+    }
+
+    // Get total count of available requests
+    const totalCount = await Recycle.countDocuments(query);
+
+    // Fetch available requests from Recycle model
+    const requests = await Recycle.find(query)
       .select('-notes')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
       .lean();
 
-    console.log(`✅ Fetched ${requests.length} available requests (total: ${totalCount})`);
+    console.log(`✅ Fetched ${requests.length} available requests (total: ${totalCount}) for city: ${recyclerCity || 'all'}`);
 
     res.status(200).json({
       success: true,
@@ -144,21 +164,35 @@ exports.acceptRequest = async (req, res, next) => {
       return next(new AppError('You have already accepted this request', 409));
     }
 
-    // Get request details from household backend
+    // Get request details from local Recycle model (same database)
     let requestData;
     try {
-      const response = await axios.get(
-        `${process.env.HOUSEHOLD_API_URL}/api/recycle/${requestId}`,
-        {
-          headers: {
-            'Authorization': `Bearer ${process.env.INTER_SERVICE_TOKEN}`
-          }
+      const recycle = await Recycle.findById(requestId);
+      
+      if (!recycle) {
+        return next(new AppError('Request not found', 404));
+      }
+      
+      requestData = {
+        id: recycle._id,
+        userId: recycle.userId,
+        category: recycle.wasteCategory,
+        quantity: recycle.quantity,
+        unit: recycle.unit || 'KG',
+        location: {
+          address: recycle.pickupLocation?.address,
+          latitude: recycle.pickupLocation?.latitude,
+          longitude: recycle.pickupLocation?.longitude
         }
-      );
-      requestData = response.data.data;
+      };
+      
+      console.log('✅ Got request data from Recycle model:', requestData);
     } catch (apiError) {
-      console.error('⚠️ Failed to fetch request from household backend:', apiError.message);
-      return next(new AppError('Failed to fetch request details', 500));
+      console.error('❌ Failed to fetch request:', {
+        message: apiError.message,
+        requestId
+      });
+      return next(new AppError(`Failed to fetch request details: ${apiError.message}`, 500));
     }
 
     // Create acceptance record
@@ -178,12 +212,13 @@ exports.acceptRequest = async (req, res, next) => {
 
     await acceptance.save();
 
-    // Create notification for accepted request
+    // Create notification for household user (their request was accepted)
     await Notification.create({
-      recyclerId,
-      title: '✅ New Request Accepted',
-      message: `You accepted a waste request: ${requestData.quantity} ${requestData.unit} of ${requestData.category}`,
+      userId: requestData.userId,
       type: 'REQUEST_ACCEPTED',
+      title: '✅ Recycling Request Accepted',
+      message: `Your ${requestData.category} recycling request has been accepted by a recycler.`,
+      recycleId: requestId,
       data: {
         recycleId: requestId,
         category: requestData.category,
@@ -192,6 +227,37 @@ exports.acceptRequest = async (req, res, next) => {
         location: requestData.location?.address
       }
     });
+
+    // Create notification for recycler (they accepted a request)
+    const recyclerDoc = await Recycler.findById(recyclerId);
+    if (recyclerDoc) {
+      // Create a dummy userId for recycler notification or use a system approach
+      // For now, we'll create a notification with recyclerId set
+      await Notification.create({
+        userId: recyclerId, // Using recyclerId as userId for recycler's own notifications
+        type: 'REQUEST_ACCEPTED',
+        title: '✅ New Request Accepted',
+        message: `You accepted a ${requestData.category} recycling request: ${requestData.quantity} ${requestData.unit} of waste.`,
+        recycleId: requestId,
+        data: {
+          recycleId: requestId,
+          category: requestData.category,
+          quantity: requestData.quantity,
+          unit: requestData.unit || 'KG',
+          location: requestData.location?.address,
+          household: true // Mark this as recycler accepting, not household requesting
+        }
+      });
+    }
+
+    // Update Recycle document status
+    const recycle = await Recycle.findById(requestId);
+    if (recycle) {
+      recycle.status = 'ACCEPTED';
+      recycle.assignedRecycler = recyclerId;
+      recycle.acceptedAt = new Date();
+      await recycle.save();
+    }
 
     // Update recycler stats
     const recycler = await Recycler.findById(recyclerId);
@@ -359,6 +425,86 @@ exports.getRequestDetails = async (req, res, next) => {
     });
   } catch (error) {
     console.error('❌ Get request details error:', error);
+    next(error);
+  }
+};
+
+/**
+ * Mark request as complete (recycled)
+ * @route PUT /api/recycler/requests/:id/complete
+ * @access Private
+ * @param {string} id - Recycle request ID (not acceptance ID)
+ */
+exports.markRequestAsComplete = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const recyclerId = req.user.id;
+
+    console.log(`📤 Marking request ${id} as complete by recycler ${recyclerId}`);
+
+    // Find the recycle request
+    const recycle = await Recycle.findById(id);
+    if (!recycle) {
+      return next(new AppError('Recycle request not found', 404));
+    }
+
+    // Check if recycler is assigned to this request
+    if (recycle.assignedRecycler.toString() !== recyclerId) {
+      return next(new AppError('You are not assigned to this request', 403));
+    }
+
+    // Update recycle status to RECYCLED
+    recycle.status = 'RECYCLED';
+    recycle.completedAt = new Date();
+    await recycle.save();
+
+    console.log(`✅ Recycle request ${id} marked as RECYCLED`);
+
+    // Update recycler stats
+    const recycler = await Recycler.findById(recyclerId);
+    if (recycler) {
+      recycler.completedRequests = (recycler.completedRequests || 0) + 1;
+      recycler.totalWasteCollected = (recycler.totalWasteCollected || 0) + recycle.quantity;
+      await recycler.save();
+      console.log(`✅ Updated recycler stats: ${recycler.completedRequests} completed requests`);
+    }
+
+    // Create notification for recycler
+    await Notification.create({
+      userId: recyclerId,
+      recyclerId: recyclerId,
+      title: '♻️ Waste Recycled',
+      message: `You completed recycling: ${recycle.quantity} ${recycle.unit} of ${recycle.wasteCategory}`,
+      type: 'STATUS_UPDATE',
+      recycleId: recycle._id.toString(),
+      data: {
+        category: recycle.wasteCategory,
+        quantity: recycle.quantity,
+        unit: recycle.unit
+      }
+    });
+
+    // Create notification for household user
+    await Notification.create({
+      userId: recycle.userId,
+      title: '♻️ Your Waste has been Recycled',
+      message: `Your ${recycle.wasteCategory.toLowerCase()} waste has been successfully recycled by our partner!`,
+      type: 'STATUS_UPDATE',
+      recycleId: recycle._id.toString(),
+      data: {
+        category: recycle.wasteCategory,
+        quantity: recycle.quantity,
+        unit: recycle.unit
+      }
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Request marked as complete successfully',
+      data: recycle
+    });
+  } catch (error) {
+    console.error('❌ Mark complete error:', error);
     next(error);
   }
 };

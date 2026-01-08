@@ -6,7 +6,8 @@ const {
   acceptRequest,
   getMyRequests,
   updateRequestStatus,
-  getRequestDetails
+  getRequestDetails,
+  markRequestAsComplete
 } = require('../controllers/recyclerRequestController');
 const { protect } = require('../middleware/authMiddleware');
 
@@ -63,7 +64,15 @@ router.get('/my-requests', getMyRequests);
 router.put('/:id/status', updateRequestStatus);
 
 /**
- * Get request details
+ * Mark request as complete (recycled)
+ * @route PUT /api/recycler/requests/:id/complete
+ * @access Private
+ * @param {string} id - Recycle request ID
+ */
+router.put('/:id/complete', markRequestAsComplete);
+
+/**
+ * Get request details (must be LAST to avoid catch-all)
  * @route GET /api/recycler/requests/:id
  * @access Private
  * @param {string} id - Request acceptance ID

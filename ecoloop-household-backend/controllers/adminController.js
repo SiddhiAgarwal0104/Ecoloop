@@ -2,6 +2,7 @@ const User = require('../models/User');
 const Admin = require('../models/Admin');
 const Donation = require('../models/Donation');
 const Recycle = require('../models/Recycle');
+const Recycler = require('../models/Recycler');
 const AppError = require('../utils/appError');
 const { generateToken } = require('../utils/generateToken');
 const bcrypt = require('bcryptjs');
@@ -465,39 +466,67 @@ exports.getNGOsOverview = async (req, res, next) => {
  */
 exports.getRecyclersOverview = async (req, res, next) => {
   try {
-    const { page = 1, limit = 10, locality = '' } = req.query;
+    const { page = 1, limit = 10, locality = '', search = '' } = req.query;
     
     // Get admin's city
     const adminCity = await getAdminCity(req.user._id);
+    if (!adminCity) {
+      return next(new AppError('Admin profile incomplete. Please complete your profile first.', 400));
+    }
 
-    // Build filter - city is optional for recyclers (show all if no city set in profile)
-    const filter = { role: 'RECYCLER' };
-    if (adminCity) {
+    console.log('♻️ [Recyclers] Fetching recyclers for city:', adminCity);
+
+    // ✅ FIX: Query Recycler model instead of User model
+    const filter = { 
+      city: adminCity,
+      verificationStatus: 'APPROVED' // Only show approved recyclers
+    };
+    
+    if (locality) {
+      filter.locality = new RegExp(locality, 'i');
+    }
+    
+    if (search) {
+      const searchRegex = new RegExp(search, 'i');
       filter.$or = [
-        { city: adminCity },
-        { city: { $exists: false } },
-        { city: null }
+        { name: searchRegex },
+        { email: searchRegex },
+        { phone: searchRegex }
       ];
     }
-    if (locality) filter.locality = new RegExp(locality, 'i');
 
-    const recyclers = await User.find(filter)
-      .select('name email phone locality city averageRating ratingCount')
+    const recyclers = await Recycler.find(filter)
+      .select('name email phone locality city rating completedRequests totalWasteCollected verificationApprovedAt')
       .skip((page - 1) * limit)
       .limit(parseInt(limit))
-      .sort({ createdAt: -1 });
+      .sort({ verificationApprovedAt: -1 });
 
-    const total = await User.countDocuments(filter);
+    const total = await Recycler.countDocuments(filter);
 
-    // Enrich with pickup counts
+    console.log('✅ [Recyclers] Found:', {
+      count: recyclers.length,
+      total: total,
+      city: adminCity
+    });
+
+    // Enrich with pickup counts from Recycle collection
     const enrichedRecyclers = await Promise.all(
       recyclers.map(async (recycler) => {
         const pickupCount = await Recycle.countDocuments({
-          userId: recycler._id
+          assignedRecycler: recycler._id,
+          status: 'COMPLETED'
         });
+        
+        const pendingCount = await Recycle.countDocuments({
+          assignedRecycler: recycler._id,
+          status: { $in: ['AVAILABLE', 'ACCEPTED', 'PICKED_UP'] }
+        });
+        
         return {
           ...recycler.toObject(),
-          totalPickups: pickupCount
+          totalPickups: pickupCount,
+          pendingPickups: pendingCount,
+          averageRating: recycler.rating || 0
         };
       })
     );
@@ -513,9 +542,11 @@ exports.getRecyclersOverview = async (req, res, next) => {
       }
     });
   } catch (error) {
+    console.error('❌ [Recyclers] Error:', error);
     next(error);
   }
 };
+
 
 /**
  * Get Platform Overview Stats
@@ -530,10 +561,31 @@ exports.getPlatformStats = async (req, res, next) => {
 
     console.log('📊 [Admin Stats] Fetching stats for city:', adminCity);
 
+    // User counts
     const totalHouseholds = await User.countDocuments({ role: 'HOUSEHOLD', city: adminCity });
     const totalNGOs = await User.countDocuments({ role: 'NGO', city: adminCity });
     const verifiedNGOs = await User.countDocuments({ role: 'NGO', isVerified: true, city: adminCity });
-    const totalRecyclers = await User.countDocuments({ role: 'RECYCLER', city: adminCity });
+    
+    // ✅ FIX: Query Recycler model for recycler counts
+    const totalRecyclers = await Recycler.countDocuments({ city: adminCity });
+    const verifiedRecyclers = await Recycler.countDocuments({ 
+      city: adminCity, 
+      verificationStatus: 'APPROVED' 
+    });
+    const pendingRecyclers = await Recycler.countDocuments({ 
+      city: adminCity, 
+      verificationStatus: 'PENDING',
+      profileCompleted: true 
+    });
+
+    console.log('👥 [Admin Stats] User counts:', { 
+      totalHouseholds, 
+      totalNGOs, 
+      verifiedNGOs, 
+      totalRecyclers, 
+      verifiedRecyclers,
+      pendingRecyclers 
+    });
 
     // Get donations from households in this city
     const householdsInCity = await User.find({ role: 'HOUSEHOLD', city: adminCity }).select('_id');
@@ -546,34 +598,58 @@ exports.getPlatformStats = async (req, res, next) => {
     });
     const pendingDonations = await Donation.countDocuments({ 
       userId: { $in: householdIds },
-      status: 'AVAILABLE' 
+      status: { $in: ['AVAILABLE', 'ACCEPTED', 'PICKED_UP'] }
     });
 
-    // Get recycles from recyclers/households in this city
-    const usersInCity = await User.find({ 
-      city: adminCity,
-      role: { $in: ['HOUSEHOLD', 'RECYCLER'] }
-    }).select('_id');
-    const userIds = usersInCity.map(u => u._id);
+    console.log('🎁 [Admin Stats] Donation stats:', { totalDonations, completedDonations, pendingDonations });
 
-    const totalRecycleActions = await Recycle.countDocuments({ userId: { $in: userIds } });
+    // ✅ FIX: Get recycles from recyclers in this city (from Recycler model)
+    const recyclersInCity = await Recycler.find({ city: adminCity }).select('_id');
+    const recyclerIds = recyclersInCity.map(r => r._id);
 
-    console.log('✅ [Admin Stats] Stats calculated:', {
-      city: adminCity,
-      households: totalHouseholds,
-      ngos: totalNGOs,
-      donations: totalDonations,
-      recycles: totalRecycleActions
+    const totalRecycleActions = await Recycle.countDocuments({ 
+      assignedRecycler: { $in: recyclerIds } 
     });
+    const completedRecycles = await Recycle.countDocuments({ 
+      assignedRecycler: { $in: recyclerIds },
+      status: 'COMPLETED'
+    });
+    const pendingRecycles = await Recycle.countDocuments({ 
+      assignedRecycler: { $in: recyclerIds },
+      status: { $in: ['AVAILABLE', 'ACCEPTED', 'PICKED_UP'] }
+    });
+    
+    // ✅ BONUS: Calculate total waste collected
+    const totalWasteCollected = await Recycler.aggregate([
+      { $match: { city: adminCity, verificationStatus: 'APPROVED' } },
+      { $group: { _id: null, total: { $sum: '$totalWasteCollected' } } }
+    ]);
+
+    console.log('♻️ [Admin Stats] Recycling stats:', { 
+      totalRecycleActions, 
+      completedRecycles, 
+      pendingRecycles,
+      totalWasteCollected: totalWasteCollected[0]?.total || 0
+    });
+
+    console.log('✅ [Admin Stats] Stats calculated successfully for city:', adminCity);
 
     res.status(200).json({
       success: true,
       data: {
+        city: adminCity,
         users: {
           totalHouseholds,
           totalNGOs,
           verifiedNGOs,
-          totalRecyclers
+          pendingNGOs: await User.countDocuments({ 
+            role: 'NGO', 
+            isVerified: false, 
+            city: adminCity 
+          }),
+          totalRecyclers,
+          verifiedRecyclers,
+          pendingRecyclers
         },
         donations: {
           total: totalDonations,
@@ -581,7 +657,10 @@ exports.getPlatformStats = async (req, res, next) => {
           pending: pendingDonations
         },
         recycling: {
-          total: totalRecycleActions
+          total: totalRecycleActions,
+          completed: completedRecycles,
+          pending: pendingRecycles,
+          totalWasteCollected: totalWasteCollected[0]?.total || 0
         }
       }
     });
@@ -590,7 +669,6 @@ exports.getPlatformStats = async (req, res, next) => {
     next(error);
   }
 };
-
 /**
  * Get Leaderboard - Global
  */
@@ -818,24 +896,23 @@ exports.getRecyclerRatings = async (req, res, next) => {
     
     // Get admin's city
     const adminCity = await getAdminCity(req.user._id);
-
-    // Build filter - city is optional for recyclers (show all if no city set in profile)
-    const filter = { role: 'RECYCLER' };
-    if (adminCity) {
-      filter.$or = [
-        { city: adminCity },
-        { city: { $exists: false } },
-        { city: null }
-      ];
+    if (!adminCity) {
+      return next(new AppError('Admin profile incomplete. Please complete your profile first.', 400));
     }
 
-    const recyclers = await User.find(filter)
-      .select('name email locality averageRating ratingCount')
+    // ✅ FIX: Query Recycler model instead of User model
+    const filter = { 
+      verificationStatus: 'APPROVED',
+      city: adminCity 
+    };
+
+    const recyclers = await Recycler.find(filter)
+      .select('name email phone locality city rating completedRequests totalWasteCollected')
       .skip((page - 1) * limit)
       .limit(parseInt(limit))
-      .sort({ averageRating: -1, ratingCount: -1 });
+      .sort({ rating: -1, completedRequests: -1 });
 
-    const total = await User.countDocuments(filter);
+    const total = await Recycler.countDocuments(filter);
 
     res.status(200).json({
       success: true,
@@ -912,3 +989,355 @@ exports.downloadNGOPerformanceReport = async (req, res, next) => {
   }
 };
 
+/**
+ * Download Recycler Performance Report
+ */
+exports.downloadRecyclerPerformanceReport = async (req, res, next) => {
+  try {
+    const { generateRecyclerPerformanceReport } = require('../services/reportService');
+    const buffer = await generateRecyclerPerformanceReport();
+
+    const fileName = `recycler_performance_report_${new Date().toISOString().split('T')[0]}.xlsx`;
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    res.send(buffer);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Download Combined NGO & Recycler Partner Report
+ */
+exports.downloadCombinedPartnerReport = async (req, res, next) => {
+  try {
+    const { generateCombinedPartnerReport } = require('../services/reportService');
+    const buffer = await generateCombinedPartnerReport();
+
+    const fileName = `combined_partner_report_${new Date().toISOString().split('T')[0]}.xlsx`;
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    res.send(buffer);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * ============ RECYCLER VERIFICATION ============
+ */
+
+/**
+ * Get Pending Recyclers
+ */
+exports.getPendingRecyclers = async (req, res, next) => {
+  try {
+    const { page = 1, limit = 10, search = '' } = req.query;
+    
+    // Get admin's city
+    const adminCity = await getAdminCity(req.user._id);
+    if (!adminCity) {
+      return next(new AppError('Admin profile incomplete. Please complete your profile first.', 400));
+    }
+
+    const searchRegex = new RegExp(search, 'i');
+
+    // ✅ FIXED: Search by city, not locality
+    const recyclers = await Recycler.find({
+      verificationStatus: 'PENDING',
+      profileCompleted: true,  // ✅ Only show completed profiles
+      city: adminCity,  // ✅ Match by city
+      $or: [
+        { name: searchRegex },
+        { email: searchRegex },
+        { locality: searchRegex }
+      ]
+    })
+      .select('name email phone locality city address verificationRequestedAt')
+      .skip((page - 1) * limit)
+      .limit(parseInt(limit))
+      .sort({ verificationRequestedAt: -1 });
+
+    const total = await Recycler.countDocuments({
+      verificationStatus: 'PENDING',
+      profileCompleted: true,
+      city: adminCity
+    });
+
+    res.status(200).json({
+      success: true,
+      data: recyclers,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit)
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+/**
+ * Get Verified Recyclers
+ */
+exports.getVerifiedRecyclers = async (req, res, next) => {
+  try {
+    const { page = 1, limit = 10, search = '' } = req.query;
+    
+    // Get admin's city
+    const adminCity = await getAdminCity(req.user._id);
+    if (!adminCity) {
+      return next(new AppError('Admin profile incomplete. Please complete your profile first.', 400));
+    }
+
+    const searchRegex = new RegExp(search, 'i');
+
+    // ✅ FIXED: Search by city, not locality
+    const recyclers = await Recycler.find({
+      verificationStatus: 'APPROVED',
+      city: adminCity,  // ✅ Match by city
+      $or: [
+        { name: searchRegex },
+        { email: searchRegex },
+        { locality: searchRegex }
+      ]
+    })
+      .select('name email phone locality city rating completedRequests totalWasteCollected verificationApprovedAt')
+      .skip((page - 1) * limit)
+      .limit(parseInt(limit))
+      .sort({ verificationApprovedAt: -1 });
+
+    const total = await Recycler.countDocuments({
+      verificationStatus: 'APPROVED',
+      city: adminCity
+    });
+
+    // Count completed requests for each recycler
+    const recyclerStats = await Promise.all(
+      recyclers.map(async (recycler) => {
+        const completedCount = await Recycle.countDocuments({
+          assignedRecycler: recycler._id,
+          status: 'COMPLETED'
+        });
+        return {
+          ...recycler.toObject(),
+          completedRequests: completedCount
+        };
+      })
+    );
+
+    res.status(200).json({
+      success: true,
+      data: recyclerStats,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit)
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Approve Recycler Verification
+ */
+exports.approveRecycler = async (req, res, next) => {
+  try {
+    const { recyclerId } = req.params;
+
+    const recycler = await Recycler.findByIdAndUpdate(
+      recyclerId,
+      {
+        isVerified: true,
+        verificationStatus: 'APPROVED',
+        verificationApprovedAt: new Date(),
+        verificationApprovedBy: req.user._id,
+        verificationRejectionReason: null
+      },
+      { new: true }
+    ).select('name email locality city phone isVerified verificationStatus');
+
+    if (!recycler) {
+      return next(new AppError('Recycler not found', 404));
+    }
+
+    // Create or update User record for the recycler
+    if (recycler.email) {
+      let user = await User.findOne({ email: recycler.email });
+      
+      if (!user) {
+        // Create new User record for this recycler
+        user = await User.create({
+          email: recycler.email,
+          name: recycler.name || '',
+          role: 'RECYCLER',
+          city: recycler.city || '',
+          locality: recycler.locality || '',
+          phone: recycler.phone || '',
+          isVerified: true,
+          profileCompleted: true,
+          verificationApprovedAt: new Date()
+        });
+        console.log(`✅ Created User record for recycler ${recycler.email}`);
+      } else {
+        // Update existing User record
+        user = await User.findOneAndUpdate(
+          { email: recycler.email },
+          { 
+            role: 'RECYCLER',
+            isVerified: true,
+            name: recycler.name || user.name,
+            city: recycler.city || user.city,
+            locality: recycler.locality || user.locality,
+            phone: recycler.phone || user.phone,
+            profileCompleted: true,
+            verificationApprovedAt: new Date()
+          },
+          { new: true }
+        );
+        console.log(`✅ Updated User ${recycler.email} as verified recycler`);
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Recycler verified successfully',
+      data: recycler
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Reject Recycler Verification
+ */
+exports.rejectRecycler = async (req, res, next) => {
+  try {
+    const { recyclerId } = req.params;
+    const { reason } = req.body;
+
+    if (!reason) {
+      return next(new AppError('Please provide rejection reason', 400));
+    }
+
+    const recycler = await Recycler.findByIdAndUpdate(
+      recyclerId,
+      {
+        isVerified: false,
+        verificationStatus: 'REJECTED',
+        verificationRejectionReason: reason,
+        verificationApprovedAt: null,
+        verificationApprovedBy: null
+      },
+      { new: true }
+    ).select('name email locality isVerified verificationStatus verificationRejectionReason');
+
+    if (!recycler) {
+      return next(new AppError('Recycler not found', 404));
+    }
+
+    // Also update the User collection to mark as not verified
+    if (recycler.email) {
+      await User.findOneAndUpdate(
+        { email: recycler.email },
+        { isVerified: false, role: 'RECYCLER' },
+        { new: true }
+      );
+      console.log(`❌ Updated User ${recycler.email} isVerified to false`);
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Recycler verification rejected',
+      data: recycler
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Get All Recycles (for admin dashboard)
+ */
+exports.getRecyclesOverview = async (req, res, next) => {
+  try {
+    const { page = 1, limit = 10, status = '', locality = '' } = req.query;
+
+    const filter = {};
+    if (status) filter.status = status;
+    if (locality) filter.locality = new RegExp(locality, 'i');
+
+    const recycles = await Recycle.find(filter)
+      .populate('userId', 'name email phone')
+      .populate('assignedRecycler', 'name email phone')
+      .skip((page - 1) * limit)
+      .limit(parseInt(limit))
+      .sort({ createdAt: -1 });
+
+    const total = await Recycle.countDocuments(filter);
+
+    res.status(200).json({
+      success: true,
+      data: recycles,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit)
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Get Recycler Ratings
+ */
+exports.getRecyclerRatingsOverview = async (req, res, next) => {
+  try {
+    const { page = 1, limit = 10, locality = '', sortBy = 'rating' } = req.query;
+
+    const filter = {
+      verificationStatus: 'APPROVED'
+    };
+    if (locality) {
+      filter.locality = new RegExp(locality, 'i');
+    }
+
+    const sortOptions = {
+      'rating': { rating: -1 },
+      'completed': { completedRequests: -1 },
+      'waste': { totalWasteCollected: -1 }
+    };
+
+    const recyclers = await Recycler.find(filter)
+      .select('name email phone locality rating completedRequests totalWasteCollected reviews')
+      .skip((page - 1) * limit)
+      .limit(parseInt(limit))
+      .sort(sortOptions[sortBy] || sortOptions.rating)
+      .populate('reviews', 'rating comment');
+
+    const total = await Recycler.countDocuments(filter);
+
+    res.status(200).json({
+      success: true,
+      data: recyclers,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit)
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};

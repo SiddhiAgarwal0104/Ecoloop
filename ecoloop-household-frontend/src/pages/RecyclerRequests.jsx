@@ -159,6 +159,24 @@ const RecyclerRequests = () => {
             const distance = getDistance(request);
             return (
               <div key={request._id} className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow overflow-hidden">
+                {/* Image */}
+                {request.images && request.images.length > 0 ? (
+                  <div className="w-full h-48 bg-gray-100 overflow-hidden">
+                    <img
+                      src={request.images[0]}
+                      alt={request.wasteCategory}
+                      className="w-full h-full object-cover hover:scale-105 transition-transform"
+                      onError={(e) => {
+                        e.target.src = 'https://via.placeholder.com/400x300?text=' + request.wasteCategory;
+                      }}
+                    />
+                  </div>
+                ) : (
+                  <div className="w-full h-48 bg-gradient-to-r from-eco-light to-eco-main flex items-center justify-center">
+                    <Package className="text-white opacity-50" size={48} />
+                  </div>
+                )}
+
                 {/* Header */}
                 <div className="p-4 bg-gradient-to-r from-eco-main to-eco-dark text-white">
                   <div className="flex justify-between items-start mb-2">

@@ -47,10 +47,16 @@ const AdminTable = ({
             {data.map((row, idx) => (
               <tr key={idx} className="hover:bg-gray-50 transition-colors">
                 {columns.map((col) => {
-                  const value = col.render ? col.render(row) : row[col.key];
+                  let value = col.render ? col.render(row[col.key], row) : row[col.key];
+                  
+                  // Handle cases where value is an object - convert to string
+                  if (typeof value === 'object' && value !== null && !React.isValidElement(value)) {
+                    value = JSON.stringify(value);
+                  }
+                  
                   return (
                     <td key={col.key} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {value}
+                      {value || '-'}
                     </td>
                   );
                 })}

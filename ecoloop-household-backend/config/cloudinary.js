@@ -7,8 +7,8 @@ const cloudinary = require('cloudinary').v2;
  */
 
 // Validate environment variables
-if (!process.env.CLOUDINARY_NAME) {
-  console.warn('⚠️ CLOUDINARY_NAME not configured');
+if (!process.env.CLOUDINARY_CLOUD_NAME) {
+  console.warn('⚠️ CLOUDINARY_CLOUD_NAME not configured');
 }
 
 if (!process.env.CLOUDINARY_API_KEY) {
@@ -23,7 +23,7 @@ if (!process.env.CLOUDINARY_API_SECRET) {
  * Configure Cloudinary with API credentials
  */
 cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_NAME,
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET,
   secure: true

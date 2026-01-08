@@ -33,8 +33,11 @@ exports.protect = async (req, res, next) => {
       // Verify token
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-      // Attach user ID to request
-      req.user = { id: decoded.id };
+      // Attach user ID to request (support both _id and id)
+      req.user = { 
+        _id: decoded.id,
+        id: decoded.id 
+      };
 
       console.log(`✅ User authenticated: ${decoded.id}`);
       next();

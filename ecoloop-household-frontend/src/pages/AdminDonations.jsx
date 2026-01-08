@@ -85,22 +85,22 @@ const AdminDonations = () => {
     {
       key: 'status',
       label: 'Status',
-      render: (row) => getStatusBadge(row.status)
+      render: (value, row) => getStatusBadge(value)
     },
     {
       key: 'createdAt',
       label: 'Date',
-      render: (row) => new Date(row.createdAt).toLocaleDateString()
+      render: (value, row) => new Date(value).toLocaleDateString()
     },
     {
       key: 'userId',
       label: 'Household',
-      render: (row) => row.userId?.name || 'N/A'
+      render: (value, row) => value?.name || 'N/A'
     },
     {
       key: 'assignedNGO',
       label: 'Assigned NGO',
-      render: (row) => row.assignedNGO?.name || 'Not Assigned'
+      render: (value, row) => value?.name || 'Not Assigned'
     }
   ];
 

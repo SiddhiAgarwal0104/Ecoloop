@@ -6,22 +6,12 @@ const AppError = require('../utils/appError');
 /**
  * Register a new recycler
  * @route POST /api/recycler/auth/register
- * @param {Object} req - Express request object
- * @param {string} req.body.email - Recycler email
- * @param {string} req.body.password - Recycler password (min 6 chars)
- * @param {string} req.body.name - Recycler full name
- * @param {string} req.body.phone - Contact phone number
- * @returns {Object} Success response with token and user data
  */
 exports.register = async (req, res, next) => {
   try {
-    const { email, password, passwordConfirm } = req.body;
+    const { email, password, passwordConfirm, name, phone } = req.body;
 
-    console.log('📥 Register payload:', {
-      email,
-      password,
-      passwordConfirm
-    });
+    console.log('📥 Register payload:', { email, name, phone });
 
     // Validation
     if (!email || !password || !passwordConfirm) {
@@ -41,20 +31,36 @@ exports.register = async (req, res, next) => {
       return next(new AppError('Email already registered', 409));
     }
 
+    // ✅ CREATE RECYCLER WITH PROFILE INCOMPLETE
     const recycler = new Recycler({
       email: email.toLowerCase(),
-      password
+      password,
+      name: name || '',
+      phone: phone || '',
+      profileCompleted: false,  // ✅ Profile needs completion
+      isVerified: false,        // ✅ Not verified yet
+      verificationStatus: 'PENDING',
+      verificationRequestedAt: null  // ✅ Will be set after profile completion
     });
 
     await recycler.save();
 
     const token = generateToken(recycler._id, 'RECYCLER');
 
+    console.log('✅ Recycler registered:', recycler.email);
+
     res.status(201).json({
       success: true,
-      message: 'Registration successful',
+      message: 'Registration successful! Please complete your profile.',
       token,
-      user: recycler.getPublicProfile()
+      data: {
+        user: {
+          ...recycler.getPublicProfile(),
+          role: 'RECYCLER',
+          profileCompleted: false
+        },
+        needsProfileCompletion: true  // ✅ Frontend will redirect to profile completion
+      }
     });
   } catch (error) {
     console.error('❌ Registration error:', error);
@@ -62,14 +68,9 @@ exports.register = async (req, res, next) => {
   }
 };
 
-
 /**
  * Login recycler
  * @route POST /api/recycler/auth/login
- * @param {Object} req - Express request object
- * @param {string} req.body.email - Recycler email
- * @param {string} req.body.password - Recycler password
- * @returns {Object} Success response with token and user data
  */
 exports.login = async (req, res, next) => {
   try {
@@ -87,17 +88,60 @@ exports.login = async (req, res, next) => {
       return next(new AppError('Invalid email or password', 401));
     }
 
-    console.log(`✅ Recycler login: ${recycler.email}`);
+    console.log('🔐 Recycler login attempt:', recycler.email);
 
-    // Generate token
+    // ✅ CHECK 1: Profile completion required
+    if (!recycler.profileCompleted) {
+      const token = generateToken(recycler._id, 'RECYCLER');
+      console.log('⚠️ Recycler profile not completed');
+      return res.status(200).json({
+        success: true,
+        message: 'Please complete your profile',
+        token,
+        data: {
+          user: {
+            ...recycler.getPublicProfile(),
+            role: 'RECYCLER',
+            profileCompleted: false
+          },
+          needsProfileCompletion: true
+        }
+      });
+    }
+
+    // ✅ CHECK 2: Admin verification required (like NGO)
+    if (!recycler.isVerified || recycler.verificationStatus !== 'APPROVED') {
+      console.log('⏳ Recycler pending verification:', {
+        isVerified: recycler.isVerified,
+        verificationStatus: recycler.verificationStatus
+      });
+      
+      return res.status(403).json({
+        success: false,
+        message: 'Your recycler profile is pending admin verification. You will receive an email once approved.',
+        data: {
+          isRecyclerPendingVerification: true,
+          verificationStatus: recycler.verificationStatus
+        }
+      });
+    }
+
+    // ✅ All checks passed - login successful
     const token = generateToken(recycler._id, 'RECYCLER');
 
-    // Return response
+    console.log('✅ Recycler login successful:', recycler.email);
+
     res.status(200).json({
       success: true,
       message: 'Login successful',
       token,
-      user: recycler.getPublicProfile()
+      data: {
+        user: {
+          ...recycler.getPublicProfile(),
+          role: 'RECYCLER',
+          profileCompleted: true
+        }
+      }
     });
   } catch (error) {
     console.error('❌ Login error:', error);
@@ -108,9 +152,6 @@ exports.login = async (req, res, next) => {
 /**
  * Get current recycler profile
  * @route GET /api/recycler/auth/profile
- * @param {Object} req - Express request object
- * @param {string} req.user.id - Recycler ID from token
- * @returns {Object} Recycler profile data
  */
 exports.getProfile = async (req, res, next) => {
   try {
@@ -120,7 +161,7 @@ exports.getProfile = async (req, res, next) => {
       return next(new AppError('Recycler not found', 404));
     }
 
-    console.log(`✅ Profile retrieved for: ${recycler.email}`);
+    console.log('✅ Profile retrieved for:', recycler.email);
 
     res.status(200).json({
       success: true,
@@ -135,18 +176,14 @@ exports.getProfile = async (req, res, next) => {
 /**
  * Update recycler profile
  * @route PUT /api/recycler/auth/profile
- * @param {Object} req - Express request object
- * @param {string} req.user.id - Recycler ID from token
- * @param {Object} req.body - Profile update fields
- * @returns {Object} Updated profile data
  */
 exports.updateProfile = async (req, res, next) => {
   try {
-    const { name, phone, address, latitude, longitude, bio, profileImage } = req.body;
+    const { name, phone, address, city, locality, latitude, longitude, bio, profileImage } = req.body;
     
-    console.log('📝 Profile update request received');
-    console.log('   Body:', { name, phone, address, latitude, longitude, bio, profileImage: !!req.file });
-    console.log('   File:', req.file ? `${req.file.originalname} (${req.file.size} bytes)` : 'No file');
+    console.log('📝 [Recycler Profile Update] Request received');
+    console.log('   User ID:', req.user.id);
+    console.log('   Body:', { name, phone, address, city, locality, latitude, longitude });
 
     // Find recycler
     const recycler = await Recycler.findById(req.user.id);
@@ -155,10 +192,12 @@ exports.updateProfile = async (req, res, next) => {
     }
 
     // Update allowed fields
-    if (name !== undefined && name !== '') recycler.name = name;
-    if (phone !== undefined && phone !== '') recycler.phone = phone;
-    if (address !== undefined && address !== '') recycler.address = address;
-    if (bio !== undefined && bio !== '') recycler.bio = bio;
+    if (name !== undefined && name.trim() !== '') recycler.name = name.trim();
+    if (phone !== undefined && phone.trim() !== '') recycler.phone = phone.trim();
+    if (address !== undefined && address.trim() !== '') recycler.address = address.trim();
+    if (city !== undefined && city.trim() !== '') recycler.city = city.trim();
+    if (locality !== undefined && locality.trim() !== '') recycler.locality = locality.trim();
+    if (bio !== undefined && bio.trim() !== '') recycler.bio = bio.trim();
 
     // Update location if provided (with proper validation)
     if (latitude !== undefined && latitude !== '' && latitude !== 'NaN' && 
@@ -166,27 +205,59 @@ exports.updateProfile = async (req, res, next) => {
       const lat = parseFloat(latitude);
       const lng = parseFloat(longitude);
       
-      console.log(`📍 Saving location - Raw latitude: ${latitude}, Raw longitude: ${longitude}`);
-      console.log(`   Parsed: latitude: ${lat}, longitude: ${lng}`);
+      console.log('📍 Processing location:', { latitude, longitude, lat, lng });
       
       if (!isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
-        // Store as simple fields for easy access
+        // Store as simple fields
         recycler.latitude = lat;
         recycler.longitude = lng;
         
-        // Also store in nested location object for GeoJSON support
+        // Also store in nested location object
         recycler.location = {
           latitude: lat,
           longitude: lng
         };
         
-        console.log(`✅ Location updated: (${lat}, ${lng})`);
+        console.log('✅ Location saved:', recycler.location);
       } else {
-        console.log('❌ Invalid coordinates provided - values out of range or NaN');
+        console.log('❌ Invalid coordinates - out of range or NaN');
         return next(new AppError('Invalid location coordinates', 400));
       }
+    }
+
+    // ✅ CHECK IF PROFILE IS NOW COMPLETE
+    const isProfileComplete = recycler.city && recycler.locality && recycler.address;
+    
+    console.log('🔍 Profile completion check:', {
+      city: !!recycler.city,
+      locality: !!recycler.locality,
+      address: !!recycler.address,
+      isComplete: isProfileComplete
+    });
+
+    if (isProfileComplete) {
+      recycler.profileCompleted = true;
+      
+      // ✅ SUBMIT FOR ADMIN VERIFICATION (like NGO flow)
+      if (!recycler.verificationRequestedAt) {
+        recycler.verificationRequestedAt = new Date();
+        recycler.isVerified = false;
+        recycler.verificationStatus = 'PENDING';
+        
+        console.log('📬 [Recycler Verification] Profile completed - submitting for admin verification:', {
+          recyclerId: recycler._id,
+          recyclerName: recycler.name,
+          city: recycler.city,
+          locality: recycler.locality,
+          requestedAt: recycler.verificationRequestedAt
+        });
+      }
     } else {
-      console.warn(`⚠️ Latitude or longitude not provided - latitude: "${latitude}", longitude: "${longitude}"`);
+      console.log('📋 Profile incomplete. Missing:', {
+        city: !recycler.city,
+        locality: !recycler.locality,
+        address: !recycler.address
+      });
     }
 
     // Handle profile image upload
@@ -200,7 +271,7 @@ exports.updateProfile = async (req, res, next) => {
         // Upload new image
         const uploadResult = await uploadToCloudinary(req.file, 'recycler-profiles');
         recycler.profileImage = uploadResult.secure_url;
-        console.log(`📤 Profile image uploaded for recycler ${recycler._id}`);
+        console.log('📤 Profile image uploaded');
       } catch (uploadError) {
         console.error('❌ Image upload failed:', uploadError);
         return next(new AppError('Failed to upload image', 500));
@@ -208,13 +279,23 @@ exports.updateProfile = async (req, res, next) => {
     }
 
     await recycler.save();
-    console.log(`✅ Profile updated for recycler: ${recycler.email}`);
-    console.log(`   Saved data - name: ${recycler.name}, phone: ${recycler.phone}, latitude: ${recycler.latitude}, longitude: ${recycler.longitude}`);
+
+    console.log('✅ [Recycler Profile Update] Profile saved:', {
+      email: recycler.email,
+      profileCompleted: recycler.profileCompleted,
+      verificationStatus: recycler.verificationStatus
+    });
+
+    // ✅ Return appropriate message
+    const message = recycler.profileCompleted && recycler.verificationStatus === 'PENDING'
+      ? '✅ Profile completed! Your recycler profile has been submitted for verification. An admin from your city will review and approve your profile within 24-48 hours. You will receive an email once verified.'
+      : 'Profile updated successfully';
 
     res.status(200).json({
       success: true,
-      message: 'Profile updated successfully',
-      user: recycler.getPublicProfile()
+      message,
+      user: recycler.getPublicProfile(),
+      needsVerification: recycler.profileCompleted && recycler.verificationStatus === 'PENDING'
     });
   } catch (error) {
     console.error('❌ Update profile error:', error);
@@ -225,11 +306,6 @@ exports.updateProfile = async (req, res, next) => {
 /**
  * Change password
  * @route PUT /api/recycler/auth/change-password
- * @param {Object} req - Express request object
- * @param {string} req.user.id - Recycler ID from token
- * @param {string} req.body.currentPassword - Current password
- * @param {string} req.body.newPassword - New password
- * @returns {Object} Success message
  */
 exports.changePassword = async (req, res, next) => {
   try {
@@ -263,7 +339,7 @@ exports.changePassword = async (req, res, next) => {
     recycler.password = newPassword;
     await recycler.save();
 
-    console.log(`✅ Password changed for recycler: ${recycler.email}`);
+    console.log('✅ Password changed for recycler:', recycler.email);
 
     res.status(200).json({
       success: true,
@@ -276,13 +352,12 @@ exports.changePassword = async (req, res, next) => {
 };
 
 /**
- * Logout recycler (client-side token deletion)
+ * Logout recycler
  * @route POST /api/recycler/auth/logout
- * @returns {Object} Success message
  */
 exports.logout = async (req, res, next) => {
   try {
-    console.log(`✅ Recycler logout: ${req.user.email || 'Unknown'}`);
+    console.log('✅ Recycler logout:', req.user.email || 'Unknown');
 
     res.status(200).json({
       success: true,
@@ -293,9 +368,3 @@ exports.logout = async (req, res, next) => {
     next(error);
   }
 };
-
-
-
-
-
-

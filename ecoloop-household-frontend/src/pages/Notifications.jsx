@@ -394,7 +394,7 @@ const Notifications = () => {
       setRefreshing(true);
       console.log('📡 Fetching notifications from API...');
 
-      const response = await axios.get('/recycler/notifications');
+      const response = await axios.get('/notifications');
 
       console.log('✅ Notifications API response:', response.data);
 

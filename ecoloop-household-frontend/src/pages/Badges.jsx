@@ -11,6 +11,7 @@ const Badges = () => {
   });
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [filter, setFilter] = useState('ALL');
 
   useEffect(() => {
@@ -20,11 +21,21 @@ const Badges = () => {
   const fetchBadges = async () => {
     try {
       setLoading(true);
+      setError(null);
+      console.log('📬 Fetching user badges...');
       const response = await axios.get('/badges/my');
+      console.log('✅ Badges response:', response.data);
       setBadges(response.data.data);
       setStats(response.data.data.stats);
+      console.log('✅ Badges loaded successfully');
     } catch (error) {
-      console.error('Failed to fetch badges:', error);
+      console.error('❌ Failed to fetch badges:', error);
+      if (error.response) {
+        console.error('   Status:', error.response.status);
+        console.error('   Data:', error.response.data);
+      }
+      setError(error.message);
+      alert(`Failed to load badges: ${error.message}`);
     } finally {
       setLoading(false);
     }
@@ -61,6 +72,25 @@ const Badges = () => {
     );
   }
 
+  if (error) {
+    return (
+      <div className="fade-in max-w-7xl mx-auto">
+        <div className="card bg-red-50 border-2 border-red-200 p-6 text-center">
+          <h2 className="text-2xl font-bold text-red-800 mb-2">Error Loading Badges</h2>
+          <p className="text-red-600 mb-4">{error}</p>
+          <button 
+            onClick={fetchBadges}
+            className="btn btn-primary"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const totalBadges = badges.earned.length + badges.inProgress.length + badges.locked.length;
+
   return (
     
       <div className="fade-in max-w-7xl mx-auto">
@@ -70,40 +100,49 @@ const Badges = () => {
           <p className="text-gray-600">Earn badges by completing eco-friendly activities</p>
         </div>
 
-        {/* Stats Overview */}
-        {stats && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <div className="card bg-gradient-to-br from-green-500 to-green-600 text-white">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-green-100 text-sm mb-1">Badges Earned</p>
-                  <p className="text-4xl font-bold">{stats.totalEarned}</p>
-                </div>
-                <Award size={48} className="text-green-200" />
-              </div>
-            </div>
-
-            <div className="card bg-gradient-to-br from-blue-500 to-blue-600 text-white">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-blue-100 text-sm mb-1">In Progress</p>
-                  <p className="text-4xl font-bold">{badges.inProgress.length}</p>
-                </div>
-                <TrendingUp size={48} className="text-blue-200" />
-              </div>
-            </div>
-
-            <div className="card bg-gradient-to-br from-purple-500 to-purple-600 text-white">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-purple-100 text-sm mb-1">Completion Rate</p>
-                  <p className="text-4xl font-bold">{stats.completionRate}%</p>
-                </div>
-                <CheckCircle size={48} className="text-purple-200" />
-              </div>
-            </div>
+        {/* Empty State */}
+        {totalBadges === 0 ? (
+          <div className="card text-center py-12">
+            <Award size={64} className="mx-auto text-gray-400 mb-4" />
+            <h2 className="text-2xl font-bold text-gray-700 mb-2">No Badges Yet</h2>
+            <p className="text-gray-600">Start earning badges by creating recycle requests and donations!</p>
           </div>
-        )}
+        ) : (
+          <>
+            {/* Stats Overview */}
+            {stats && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <div className="card bg-gradient-to-br from-green-500 to-green-600 text-white">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-green-100 text-sm mb-1">Badges Earned</p>
+                      <p className="text-4xl font-bold">{stats.totalEarned}</p>
+                    </div>
+                    <Award size={48} className="text-green-200" />
+                  </div>
+                </div>
+
+                <div className="card bg-gradient-to-br from-blue-500 to-blue-600 text-white">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-blue-100 text-sm mb-1">In Progress</p>
+                      <p className="text-4xl font-bold">{badges.inProgress.length}</p>
+                    </div>
+                    <TrendingUp size={48} className="text-blue-200" />
+                  </div>
+                </div>
+
+                <div className="card bg-gradient-to-br from-purple-500 to-purple-600 text-white">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-purple-100 text-sm mb-1">Completion Rate</p>
+                      <p className="text-4xl font-bold">{stats.completionRate}%</p>
+                    </div>
+                    <CheckCircle size={48} className="text-purple-200" />
+                  </div>
+                </div>
+              </div>
+            )}
 
         {/* Filter Tabs */}
         <div className="card mb-6">
@@ -172,7 +211,7 @@ const Badges = () => {
                   {/* Progress Bar */}
                   <div className="mb-3">
                     <div className="flex justify-between text-xs text-gray-600 mb-1">
-                      <span>{badge.progress.current} / {badge.progress.target}</span>
+                      <span>{badge.progress?.current || 0} / {badge.progress?.target || 0}</span>
                       <span>{getProgressPercentage(badge)}%</span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2">
@@ -212,6 +251,8 @@ const Badges = () => {
               ))}
             </div>
           </div>
+        )}
+          </>
         )}
       </div>
    

@@ -18,26 +18,50 @@ const extractLocality = (address = '') =>
 
 // Reverse geocode
 const reverseGeocode = async (lat, lng, cb) => {
-  const res = await fetch(
-    `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`
-  );
-  const data = await res.json();
-  if (data?.display_name) {
-    cb({
-      address: data.display_name,
-      locality: extractLocality(data.display_name),
-      latitude: lat,
-      longitude: lng,
-    });
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`,
+      {
+        headers: {
+          'Accept': 'application/json',
+          'User-Agent': 'EcoLoop-App'
+        }
+      }
+    );
+    const data = await res.json();
+    if (data?.display_name) {
+      cb({
+        address: data.display_name,
+        locality: extractLocality(data.display_name),
+        latitude: lat,
+        longitude: lng,
+      });
+    }
+  } catch (error) {
+    console.error('❌ Reverse geocode failed:', error);
   }
 };
 
 // Search
 const searchLocation = async (query) => {
-  const res = await fetch(
-    `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`
-  );
-  return await res.json();
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=10`,
+      {
+        headers: {
+          'Accept': 'application/json',
+          'User-Agent': 'EcoLoop-App'
+        }
+      }
+    );
+    if (!res.ok) {
+      throw new Error(`HTTP error! status: ${res.status}`);
+    }
+    return await res.json();
+  } catch (error) {
+    console.error('❌ Search location failed:', error);
+    return [];
+  }
 };
 
 // Component to handle map centering
@@ -86,8 +110,17 @@ const LocationPicker = ({ onLocationSelect }) => {
       }
       setLoading(true);
       try {
+        console.log('🔍 Searching for location:', q);
         const searchResults = await searchLocation(q);
-        console.log('Search results:', searchResults);
+        console.log('✅ Search results:', searchResults);
+        
+        if (!searchResults || searchResults.length === 0) {
+          console.warn('⚠️ No results found for:', q);
+          setResults([]);
+          setLoading(false);
+          return;
+        }
+        
         setResults(searchResults);
         
         // Auto-center map on first search result
@@ -95,12 +128,14 @@ const LocationPicker = ({ onLocationSelect }) => {
           const firstResult = searchResults[0];
           const lat = parseFloat(firstResult.lat);
           const lng = parseFloat(firstResult.lon);
-          console.log('Centering map to:', lat, lng);
+          console.log('📍 Centering map to:', lat, lng);
           setCenter([lat, lng]);
           setMarker([lat, lng]);
         }
       } catch (error) {
-        console.error('Search error:', error);
+        console.error('❌ Search error:', error.message);
+        alert(`Failed to search location: ${error.message}`);
+        setResults([]);
       } finally {
         setLoading(false);
       }
@@ -124,16 +159,30 @@ const LocationPicker = ({ onLocationSelect }) => {
   };
 
   const useCurrentLocation = () => {
-    navigator.geolocation.getCurrentPosition((pos) => {
-      const { latitude, longitude } = pos.coords;
-      setCenter([latitude, longitude]);
-      setMarker([latitude, longitude]);
-      reverseGeocode(latitude, longitude, (location) => {
-        setQuery(location.address);
-        setSelectedResult({ lat: latitude, lon: longitude });
-        onLocationSelect(location);
-      });
-    });
+    if (!navigator.geolocation) {
+      alert('Geolocation is not supported by your browser');
+      return;
+    }
+    
+    console.log('📍 Getting current location...');
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude, longitude } = pos.coords;
+        console.log('✅ Got position:', latitude, longitude);
+        setCenter([latitude, longitude]);
+        setMarker([latitude, longitude]);
+        reverseGeocode(latitude, longitude, (location) => {
+          console.log('📍 Reverse geocoded:', location);
+          setQuery(location.address);
+          setSelectedResult({ lat: latitude, lon: longitude });
+          onLocationSelect(location);
+        });
+      },
+      (error) => {
+        console.error('❌ Geolocation error:', error.message);
+        alert(`Failed to get current location: ${error.message}`);
+      }
+    );
   };
 
   return (
