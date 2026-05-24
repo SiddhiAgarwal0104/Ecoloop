@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const Recycler = require('../models/Recycler');
 const AppError = require('../utils/appError');
 
 /**
@@ -34,9 +35,18 @@ exports.protect = async (req, res, next) => {
       // Verify token
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-      // Fetch full user document from database to get all fields
-      const user = await User.findById(decoded.id);
+      // Try to fetch user from User model first (for HOUSEHOLD, NGO, ADMIN)
+      let user = await User.findById(decoded.id);
       
+      // If not found in User model, try Recycler model
+      if (!user) {
+        user = await Recycler.findById(decoded.id);
+        if (user) {
+          // Add role to recycler user for consistency
+          user.role = 'RECYCLER';
+        }
+      }
+
       if (!user) {
         return next(new AppError('User not found', 404));
       }
@@ -46,7 +56,7 @@ exports.protect = async (req, res, next) => {
       req.user = user;
       req.user.id = user._id.toString();
 
-      console.log(`✅ User authenticated: ${decoded.id}`);
+      console.log(`✅ User authenticated: ${decoded.id}, Role: ${user.role}`);
       next();
     } catch (error) {
       if (error.name === 'TokenExpiredError') {

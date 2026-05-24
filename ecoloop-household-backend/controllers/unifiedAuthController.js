@@ -85,9 +85,9 @@ exports.register = async (req, res, next) => {
           user: {
             ...recycler.getPublicProfile(),
             role: 'RECYCLER',  // Explicitly set role
-            profileCompleted: true  // Recyclers don't need profile completion
+            profileCompleted: false  // ✅ Recyclers need profile completion
           },
-          needsProfileCompletion: false  // Recyclers go straight to dashboard
+          needsProfileCompletion: true  // ✅ Redirect to profile completion
         }
       });
 

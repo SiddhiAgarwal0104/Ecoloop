@@ -76,6 +76,7 @@ if (process.env.NODE_ENV === 'development') {
 }
 
 // ====== Route Imports ======
+const ngoAuthRoutes = require('./routes/ngoAuthRoutes');
 const recyclerAuthRoutes = require('./routes/recyclerAuthRoutes');
 const recyclerRequestRoutes = require('./routes/recyclerRequestRoutes');
 const recyclerDashboardRoutes = require('./routes/recyclerDashboardRoutes');
@@ -84,6 +85,12 @@ const donationIntegrationRoutes = require('./routes/donationRoutes');
 const recycleIntegrationRoutes = require('./routes/recycleIntegrationRoutes');
 
 // ====== API Routes ======
+/**
+ * NGO Authentication Routes
+ * @route /api/ngo/auth
+ */
+app.use('/api/ngo/auth', ngoAuthRoutes);
+
 /**
  * Recycler Authentication Routes
  * @route /api/recycler/auth

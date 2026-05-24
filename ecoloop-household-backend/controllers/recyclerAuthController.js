@@ -165,7 +165,9 @@ exports.getProfile = async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      user: recycler.getPublicProfile()
+      data: {
+        user: recycler.getPublicProfile()
+      }
     });
   } catch (error) {
     console.error('❌ Get profile error:', error);
@@ -294,8 +296,10 @@ exports.updateProfile = async (req, res, next) => {
     res.status(200).json({
       success: true,
       message,
-      user: recycler.getPublicProfile(),
-      needsVerification: recycler.profileCompleted && recycler.verificationStatus === 'PENDING'
+      data: {
+        user: recycler.getPublicProfile(),
+        needsVerification: recycler.profileCompleted && recycler.verificationStatus === 'PENDING'
+      }
     });
   } catch (error) {
     console.error('❌ Update profile error:', error);
