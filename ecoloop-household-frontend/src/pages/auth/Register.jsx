@@ -188,6 +188,15 @@ const Register = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-eco-dark to-eco-main flex items-center justify-center p-4">
+      <button
+        type="button"
+        onClick={() => navigate('/')}
+        className="fixed left-4 top-4 z-50 inline-flex items-center gap-2 rounded-full border border-green-600 bg-white px-4 py-2 text-sm font-semibold text-green-700 shadow-lg transition-colors hover:bg-green-50 hover:text-green-800"
+      >
+        <Home size={16} />
+        <span>Back to Home</span>
+      </button>
+
       <div className="w-full max-w-2xl bg-white rounded-2xl shadow-2xl p-8">
         {/* Header */}
         <div className="text-center mb-8">

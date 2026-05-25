@@ -118,6 +118,15 @@ const RecyclerRegister = () => {
           ) : (
             // Registration form
             <>
+              <div className="mb-4">
+                <Link
+                  to="/"
+                  className="flex items-center gap-1 text-sm text-eco-main hover:text-eco-dark font-medium"
+                >
+                  ← Back to Home
+                </Link>
+              </div>
+
               <div className="text-center mb-8">
                 <h1 className="text-3xl font-bold text-eco-dark mb-2">EcoLoop</h1>
                 <p className="text-gray-600">Recycler Registration</p>
