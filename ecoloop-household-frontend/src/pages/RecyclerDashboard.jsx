@@ -151,44 +151,6 @@ const RecyclerDashboard = () => {
         </div>
       </div>
 
-      {/* Waste Collected & Recent Requests */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Waste Collected */}
-        <div className="bg-white rounded-lg shadow p-6 lg:col-span-1">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">Waste Collected</h2>
-          <p className="text-4xl font-bold text-eco-main">{formatNumber(stats?.stats?.totalWasteCollected || 0)} KG</p>
-          <p className="text-sm text-gray-600 mt-2">Total environmental impact</p>
-        </div>
-
-        {/* Waste by Category */}
-        <div className="bg-white rounded-lg shadow p-6 lg:col-span-2">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">Waste by Category</h2>
-          <div className="space-y-3">
-            {stats.wasteByCategory && stats.wasteByCategory.length > 0 ? (
-              (() => {
-                const maxTotal = Math.max(...stats.wasteByCategory.map(w => w.total));
-                return stats.wasteByCategory.map((item) => (
-                  <div key={item._id} className="flex items-center justify-between">
-                    <span className="text-gray-700 font-medium">{item._id}</span>
-                    <div className="flex items-center gap-2">
-                      <div className="w-32 bg-gray-200 rounded-full h-2">
-                        <div
-                          className="bg-eco-main h-2 rounded-full"
-                          style={{ width: `${(item.total / maxTotal) * 100}%` }}
-                        ></div>
-                      </div>
-                      <span className="text-gray-600 text-sm">{formatNumber(item.total)} KG</span>
-                    </div>
-                  </div>
-                ));
-              })()
-            ) : (
-              <p className="text-gray-500 text-center py-4">No waste data yet</p>
-            )}
-          </div>
-        </div>
-      </div>
-
       {/* Available Requests from Households */}
       {console.log('Debug - availableRequests:', stats?.availableRequests)}
       {stats?.availableRequests && Array.isArray(stats.availableRequests) && stats.availableRequests.length > 0 ? (

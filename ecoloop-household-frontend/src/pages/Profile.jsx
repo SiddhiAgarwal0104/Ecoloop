@@ -3,6 +3,9 @@ import { Mail, Phone, MapPin, Edit2, Save, X, User, Home } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import LocationPicker from '../components/LocationPicker';
 
+// Helper: treat "Not Set", empty string, undefined/null as empty
+const fromProfile = (val) => (!val || val === 'Not Set') ? '' : val;
+
 /**
  * Profile Page Component
  * View and edit user profile for all roles
@@ -13,11 +16,6 @@ const Profile = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-
-  console.log('📄 Profile component mounted');
-  console.log('   User:', user);
-  console.log('   User role:', user?.role);
-  console.log('   isEditing:', isEditing);
 
   const isRecycler = user?.role === 'RECYCLER';
   const isNGO = user?.role === 'NGO';
@@ -35,19 +33,19 @@ const Profile = () => {
     longitude: null,
   });
 
-  // Sync form data with user
+  // Sync form data with user — clears "Not Set" values and reads nested location correctly
   useEffect(() => {
     if (user) {
       setFormData({
         name: user.name || '',
-        phone: user.phone || '',
-        city: user.city || '',
-        locality: user.locality || '',
-        pincode: user.pincode || '',
-        address: user.address || '',
+        phone: fromProfile(user.phone),
+        city: fromProfile(user.city),
+        locality: fromProfile(user.locality),
+        pincode: fromProfile(user.pincode),
+        address: fromProfile(user.address),
         bio: user.bio || '',
-        latitude: user.latitude || null,
-        longitude: user.longitude || null,
+        latitude: user.location?.latitude || null,   // FIX: was user.latitude
+        longitude: user.location?.longitude || null, // FIX: was user.longitude
       });
     }
   }, [user]);
@@ -57,7 +55,7 @@ const Profile = () => {
     if (refreshUser) {
       refreshUser();
     }
-  }, [refreshUser]);
+  }, []); // FIX: removed refreshUser from deps to prevent infinite loop
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -123,7 +121,7 @@ const Profile = () => {
 
       await updateProfile(payload);
       await refreshUser();
-      
+
       setSuccess('Profile updated successfully!');
       setIsEditing(false);
     } catch (err) {
@@ -136,16 +134,17 @@ const Profile = () => {
   };
 
   const handleCancel = () => {
+    // FIX: clears "Not Set" and reads nested location correctly
     setFormData({
       name: user?.name || '',
-      phone: user?.phone || '',
-      city: user?.city || '',
-      locality: user?.locality || '',
-      pincode: user?.pincode || '',
-      address: user?.address || '',
+      phone: fromProfile(user?.phone),
+      city: fromProfile(user?.city),
+      locality: fromProfile(user?.locality),
+      pincode: fromProfile(user?.pincode),
+      address: fromProfile(user?.address),
       bio: user?.bio || '',
-      latitude: user?.latitude || null,
-      longitude: user?.longitude || null,
+      latitude: user?.location?.latitude || null,   // FIX: was user.latitude
+      longitude: user?.location?.longitude || null, // FIX: was user.longitude
     });
     setError('');
     setSuccess('');
@@ -340,7 +339,7 @@ const Profile = () => {
               <p className="text-xs text-gray-600 mb-3">
                 Click on the map to select your exact location. This helps us match you with nearby services.
               </p>
-              
+
               <LocationPicker onLocationSelect={handleLocationSelect} />
 
               {formData.latitude && formData.longitude && (
@@ -391,43 +390,57 @@ const Profile = () => {
 
             <div className="bg-gray-50 p-4 rounded-lg">
               <p className="text-sm text-gray-600 mb-1">Phone Number</p>
-              <p className="text-lg font-semibold text-gray-800">{user.phone || 'Not provided'}</p>
+              <p className="text-lg font-semibold text-gray-800">
+                {fromProfile(user.phone) || 'Not provided'}
+              </p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="bg-gray-50 p-4 rounded-lg">
                 <p className="text-sm text-gray-600 mb-1">City</p>
-                <p className="text-lg font-semibold text-gray-800">{user.city || 'Not provided'}</p>
+                <p className="text-lg font-semibold text-gray-800">
+                  {fromProfile(user.city) || 'Not provided'}
+                </p>
               </div>
 
               <div className="bg-gray-50 p-4 rounded-lg">
                 <p className="text-sm text-gray-600 mb-1">Pincode</p>
-                <p className="text-lg font-semibold text-gray-800">{user.pincode || 'Not provided'}</p>
+                <p className="text-lg font-semibold text-gray-800">
+                  {fromProfile(user.pincode) || 'Not provided'}
+                </p>
               </div>
             </div>
 
             <div className="bg-gray-50 p-4 rounded-lg">
               <p className="text-sm text-gray-600 mb-1">Locality</p>
-              <p className="text-lg font-semibold text-gray-800">{user.locality || 'Not provided'}</p>
+              <p className="text-lg font-semibold text-gray-800">
+                {fromProfile(user.locality) || 'Not provided'}
+              </p>
             </div>
 
             <div className="bg-gray-50 p-4 rounded-lg">
               <p className="text-sm text-gray-600 mb-1">Address</p>
-              <p className="text-lg font-semibold text-gray-800">{user.address || 'Not provided'}</p>
+              <p className="text-lg font-semibold text-gray-800">
+                {fromProfile(user.address) || 'Not provided'}
+              </p>
             </div>
 
-            {/* Location Coordinates */}
-            {(user.latitude || user.longitude) && (
+            {/* Location Coordinates — FIX: reads from user.location.latitude/longitude */}
+            {(user.location?.latitude || user.location?.longitude) && (
               <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
                 <p className="text-sm text-blue-600 mb-2">📍 Location Coordinates</p>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <p className="text-xs text-blue-600">Latitude</p>
-                    <p className="text-sm font-mono text-blue-900">{user.latitude?.toFixed(6) || 'N/A'}</p>
+                    <p className="text-sm font-mono text-blue-900">
+                      {user.location?.latitude?.toFixed(6) || 'N/A'}
+                    </p>
                   </div>
                   <div>
                     <p className="text-xs text-blue-600">Longitude</p>
-                    <p className="text-sm font-mono text-blue-900">{user.longitude?.toFixed(6) || 'N/A'}</p>
+                    <p className="text-sm font-mono text-blue-900">
+                      {user.location?.longitude?.toFixed(6) || 'N/A'}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -442,8 +455,8 @@ const Profile = () => {
           <h3 className="font-bold text-blue-900 mb-2">NGO Verification Status</h3>
           <div className="flex items-center gap-2">
             <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
-              user.isVerified 
-                ? 'bg-green-100 text-green-700' 
+              user.isVerified
+                ? 'bg-green-100 text-green-700'
                 : 'bg-yellow-100 text-yellow-700'
             }`}>
               {user.isVerified ? '✅ Verified' : '⏳ Pending Verification'}
