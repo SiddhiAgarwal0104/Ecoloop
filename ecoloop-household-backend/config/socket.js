@@ -1,9 +1,9 @@
-// config/socket.js
+// config/socket.js  (BACKEND)
 const socketIO = require('socket.io');
 const jwt = require('jsonwebtoken');
 
 let io;
-const connectedUsers = new Map(); // userId -> socketId
+const connectedUsers = new Map();
 
 const initSocket = (server) => {
   io = socketIO(server, {
@@ -16,55 +16,80 @@ const initSocket = (server) => {
 
   console.log('🔌 Socket.IO initialized');
 
-  // ── AUTH MIDDLEWARE ────────────────────────────────────────────────
+  // ── AUTH MIDDLEWARE ────────────────────────────────────────────────────────
   io.use((socket, next) => {
     const token = socket.handshake.auth.token;
     if (!token) return next(new Error('No token provided'));
-
     try {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
       socket.userId = decoded.id;
+      socket.locality = decoded.locality;
+      socket.pincode = decoded.pincode;
       next();
     } catch (err) {
       next(new Error('Invalid token'));
     }
   });
 
-  // ── CONNECTION ─────────────────────────────────────────────────────
+  // ── CONNECTION ─────────────────────────────────────────────────────────────
   io.on('connection', (socket) => {
     console.log(`✅ User ${socket.userId} connected [${socket.id}]`);
-    connectedUsers.set(socket.userId, socket.id);
 
-    // Join personal room (for direct notifications)
+    if (!connectedUsers.has(socket.userId)) connectedUsers.set(socket.userId, new Set());
+    connectedUsers.get(socket.userId).add(socket.id);
+
+    // Personal notification room
     socket.join(socket.userId);
 
-    // ── JOIN chat room ─────────────────────────────────────────────
+    // Locality room
+    if (socket.locality && socket.pincode) {
+      socket.join(`locality:${socket.locality}:${socket.pincode}`);
+    }
+
+    // ── JOIN chat room (snake_case — matches frontend) ─────────────────────
     socket.on('join_chat_room', ({ roomId }) => {
       if (!roomId) return;
-      socket.join(roomId.toString());
-      console.log(`💬 User ${socket.userId} joined room ${roomId}`);
+      const id = roomId.toString();
+      socket.join(id);
+      console.log(`💬 User ${socket.userId} joined room ${id}`);
+      socket.emit('joined_room', { roomId: id }); // confirm back
     });
 
-    // ── LEAVE chat room ────────────────────────────────────────────
+    // ── Also handle camelCase for backwards compatibility ──────────────────
+    socket.on('joinChatRoom', (chatRoomId) => {
+      if (!chatRoomId) return;
+      const id = chatRoomId.toString();
+      socket.join(id);
+      console.log(`💬 User ${socket.userId} joined room (camel) ${id}`);
+    });
+
+    // ── LEAVE ──────────────────────────────────────────────────────────────
     socket.on('leave_chat_room', ({ roomId }) => {
       if (!roomId) return;
       socket.leave(roomId.toString());
-      console.log(`💬 User ${socket.userId} left room ${roomId}`);
     });
 
-    // ── TYPING indicator ───────────────────────────────────────────
-    socket.on('typing', ({ roomId, isTyping }) => {
-      if (!roomId) return;
-      socket.to(roomId.toString()).emit('typing', {
-        userId: socket.userId,
-        isTyping,
-      });
+    socket.on('leaveChatRoom', (chatRoomId) => {
+      if (!chatRoomId) return;
+      socket.leave(chatRoomId.toString());
     });
 
-    // ── DISCONNECT ─────────────────────────────────────────────────
+    // ── TYPING ─────────────────────────────────────────────────────────────
+    socket.on('typing', ({ roomId, isTyping, chatRoomId }) => {
+      // support both naming conventions
+      const id = (roomId || chatRoomId)?.toString();
+      if (!id) return;
+      socket.to(id).emit('typing', { userId: socket.userId, isTyping });
+    });
+
+    // ── DISCONNECT ─────────────────────────────────────────────────────────
     socket.on('disconnect', () => {
-      console.log(`🔌 User ${socket.userId} disconnected`);
-      connectedUsers.delete(socket.userId);
+      console.log(`🔌 User ${socket.userId} disconnected [${socket.id}]`);
+      const sockets = connectedUsers.get(socket.userId);
+      if (sockets) {
+        sockets.delete(socket.id);
+        if (sockets.size === 0) connectedUsers.delete(socket.userId);
+      }
     });
 
     socket.on('error', (err) => {
@@ -83,13 +108,9 @@ const getIO = () => {
   return io;
 };
 
-// Send a notification to a specific user (if online)
 const sendToUser = (userId, event, data) => {
   if (!io) return;
-  const socketId = connectedUsers.get(userId?.toString());
-  if (socketId) {
-    io.to(socketId).emit(event, data);
-  }
+  io.to(userId.toString()).emit(event, data);
 };
 
 module.exports = { initSocket, getIO, sendToUser };
