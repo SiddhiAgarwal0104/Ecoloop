@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Medal, MapPin } from 'lucide-react';
 import AdminLayout from '../components/admin/AdminLayout';
@@ -17,10 +18,15 @@ const AdminLeaderboard = () => {
   });
 
   useEffect(() => {
+    // Clear stale data whenever tab changes
+    setLeaderboard([]);
+    setPagination(prev => ({ ...prev, page: 1, total: 0, pages: 0 }));
+
     if (activeTab === 'global') {
       fetchGlobalLeaderboard();
     }
-  }, [activeTab, pagination.page]);
+    // locality fetch will trigger via selectedLocality effect below
+  }, [activeTab]);
 
   useEffect(() => {
     fetchLocalities();
@@ -55,25 +61,22 @@ const AdminLeaderboard = () => {
   };
 
   const fetchLocalityLeaderboard = async () => {
+    if (!selectedLocality) return;
     try {
       setLoading(true);
       const token = localStorage.getItem('adminToken');
       const response = await axios.get(
-        `http://localhost:5000/api/admin/leaderboard/locality/${selectedLocality}`,
+        `http://localhost:5000/api/admin/leaderboard/locality/${encodeURIComponent(selectedLocality)}`,
         {
-          params: {
-            page: pagination.page,
-            limit: pagination.limit
-          },
+          params: { page: pagination.page, limit: pagination.limit },
           headers: { Authorization: `Bearer ${token}` }
         }
       );
-
-      setLeaderboard(response.data.data);
-      setPagination(response.data.pagination);
+      setLeaderboard(response.data.data || []);
+      if (response.data.pagination) setPagination(response.data.pagination);
     } catch (error) {
       console.error('Error fetching locality leaderboard:', error);
-      alert('Failed to fetch locality leaderboard');
+      setLeaderboard([]);
     } finally {
       setLoading(false);
     }
@@ -202,9 +205,7 @@ const AdminLeaderboard = () => {
                 <th className="px-6 py-3 text-left text-xs font-semibold text-eco-dark uppercase tracking-wider">
                   Total Actions
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-eco-dark uppercase tracking-wider">
-                  Rating
-                </th>
+
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -244,11 +245,7 @@ const AdminLeaderboard = () => {
                         {user.totalActions}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="text-sm font-semibold text-yellow-600">
-                        ⭐ {user.averageRating?.toFixed(1) || 'N/A'}
-                      </span>
-                    </td>
+
                   </tr>
                 ))
               )}

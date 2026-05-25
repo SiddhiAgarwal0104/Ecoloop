@@ -18,8 +18,6 @@ const {
   getRecyclersOverview,
   getPlatformStats,
   getGlobalLeaderboard,
-  getLocalityLeaderboard,
-  getAllLocalities,
   getNGORatings,
   getRecyclerRatings,
   getRecyclerRatingsOverview,
@@ -31,6 +29,9 @@ const {
 } = require('../controllers/adminController');
 
 const { adminAuth, checkPermission, superAdminOnly } = require('../middleware/adminMiddleware');
+const { getLocalityLeaderboardByName, getLocalities } = require('../controllers/leaderboardController');
+
+
 
 // ============ AUTH ROUTES ============
 router.post('/login', adminLogin);
@@ -66,8 +67,8 @@ router.get('/overview/recyclers', adminAuth, getRecyclersOverview);
 
 // ---- Leaderboards ----
 router.get('/leaderboard/global', adminAuth, getGlobalLeaderboard);
-router.get('/leaderboard/locality/:locality', adminAuth, getLocalityLeaderboard);
-router.get('/localities', adminAuth, getAllLocalities);
+router.get('/leaderboard/locality/:locality', adminAuth, getLocalityLeaderboardByName);
+router.get('/localities', adminAuth, getLocalities);
 
 // ---- Ratings ----
 router.get('/ratings/ngos', adminAuth, getNGORatings);
