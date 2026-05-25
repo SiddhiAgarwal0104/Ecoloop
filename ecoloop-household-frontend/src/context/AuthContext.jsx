@@ -3,8 +3,10 @@ import axios from 'axios';
 
 const AuthContext = createContext(null);
 
+const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
 const apiClient = axios.create({
-  baseURL: 'http://localhost:5000/api',
+  baseURL: `${BASE_URL}/api`,
   headers: { 'Content-Type': 'application/json' },
 });
 
@@ -19,19 +21,13 @@ export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(localStorage.getItem('token'));
   const [loading, setLoading] = useState(true);
 
-  /* =========================
-     Load user on refresh
-  ========================= */
   useEffect(() => {
     const loadUser = async () => {
       if (!token) { setLoading(false); return; }
       try {
         apiClient.defaults.headers.common.Authorization = `Bearer ${token}`;
-        axios.defaults.headers.common.Authorization = `Bearer ${token}`;
-
         const storedUser = localStorage.getItem('user');
         const storedRole = localStorage.getItem('userRole');
-
         if (storedUser) {
           const userData = JSON.parse(storedUser);
           if (!userData.role && storedRole) userData.role = storedRole;
@@ -47,9 +43,6 @@ export const AuthProvider = ({ children }) => {
     loadUser();
   }, [token]);
 
-  /* =========================
-     Helper: save auth state
-  ========================= */
   const saveAuth = (userData, authToken) => {
     const userRole = userData?.role || 'HOUSEHOLD';
     setUser(userData);
@@ -57,40 +50,26 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem('token', authToken);
     localStorage.setItem('user', JSON.stringify(userData));
     localStorage.setItem('userRole', userRole);
-    axios.defaults.headers.common.Authorization = `Bearer ${authToken}`;
     apiClient.defaults.headers.common.Authorization = `Bearer ${authToken}`;
   };
 
-  /* =========================
-     Send OTP
-  ========================= */
   const sendOTP = async (email, purpose = 'verify') => {
-    const res = await axios.post('http://localhost:5000/api/auth/send-otp', { email, purpose });
+    const res = await apiClient.post('/auth/send-otp', { email, purpose });
     return res.data;
   };
 
-  /* =========================
-     Verify OTP
-  ========================= */
   const verifyOTP = async (email, otp) => {
-    const res = await axios.post('http://localhost:5000/api/auth/verify-otp', { email, otp });
+    const res = await apiClient.post('/auth/verify-otp', { email, otp });
     return res.data;
   };
 
-  /* =========================
-     Register
-  ========================= */
   const register = async (payload) => {
-    // payload should include otpVerified: true
-    const res = await axios.post('http://localhost:5000/api/auth/signup', payload);
-
+    const res = await apiClient.post('/auth/signup', payload);
     const userData = res.data.data?.user || res.data.user;
     const authToken = res.data.token || res.data.data?.token;
     const userRole = userData?.role || payload.role || 'HOUSEHOLD';
     if (userData && !userData.role) userData.role = userRole;
-
     if (authToken) saveAuth(userData, authToken);
-
     return {
       success: true,
       user: userData,
@@ -100,21 +79,14 @@ export const AuthProvider = ({ children }) => {
     };
   };
 
-  /* =========================
-     Login
-  ========================= */
   const login = async (credentials) => {
-    const res = await axios.post('http://localhost:5000/api/auth/login', credentials);
-
+    const res = await apiClient.post('/auth/login', credentials);
     const userData = res.data.data?.user || res.data.user;
     const authToken = res.data.token || res.data.data?.token;
     const userRole = userData?.role || credentials.role?.toUpperCase() || 'HOUSEHOLD';
     if (userData && !userData.role) userData.role = userRole;
-
     saveAuth(userData, authToken);
-
     const needsProfileCompletion = !userData?.profileCompleted && (userRole === 'NGO' || userRole === 'RECYCLER');
-
     return {
       success: true,
       user: userData,
@@ -125,21 +97,12 @@ export const AuthProvider = ({ children }) => {
     };
   };
 
-  /* =========================
-     Google Sign-In (FIXED)
-     Works for both Login.jsx (googleSignIn) and Register.jsx (googleSignIn)
-  ========================= */
   const googleSignIn = async ({ credential, role = 'HOUSEHOLD' }) => {
-    const res = await axios.post('http://localhost:5000/api/auth/google', { credential, role });
-
+    const res = await apiClient.post('/auth/google', { credential, role });
     const data = res.data;
     const userData = data.data?.user || data.user;
     const authToken = data.token || data.data?.token;
-
-    if (authToken && userData) {
-      saveAuth(userData, authToken);
-    }
-
+    if (authToken && userData) saveAuth(userData, authToken);
     return {
       success: data.success,
       user: userData,
@@ -149,37 +112,26 @@ export const AuthProvider = ({ children }) => {
     };
   };
 
-  // Alias for backward compat
   const googleLogin = googleSignIn;
 
-  /* =========================
-     Forgot Password — send OTP
-  ========================= */
   const forgotPassword = async (email) => {
-    const res = await axios.post('http://localhost:5000/api/auth/forgot-password', { email });
+    const res = await apiClient.post('/auth/forgot-password', { email });
     return res.data;
   };
 
-  /* =========================
-     Reset Password — verify OTP + new password
-  ========================= */
   const resetPassword = async ({ email, otp, newPassword, confirmPassword }) => {
-    const res = await axios.post('http://localhost:5000/api/auth/reset-password', {
+    const res = await apiClient.post('/auth/reset-password', {
       email, otp, newPassword, confirmPassword,
     });
     return res.data;
   };
 
-  /* =========================
-     Update Profile
-  ========================= */
   const updateProfile = async (profileData) => {
     try {
       const userRole = localStorage.getItem('userRole') || user?.role || 'HOUSEHOLD';
       let endpoint = '/auth/profile';
       if (userRole === 'RECYCLER') endpoint = '/recycler/auth/profile';
       else if (userRole === 'NGO') endpoint = '/ngo/auth/profile';
-
       const res = await apiClient.put(endpoint, profileData);
       const updatedUser = res.data.data?.user || res.data.user;
       setUser(updatedUser);
@@ -208,16 +160,12 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  /* =========================
-     Logout
-  ========================= */
   const logout = () => {
     setUser(null);
     setToken(null);
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     localStorage.removeItem('userRole');
-    delete axios.defaults.headers.common.Authorization;
     delete apiClient.defaults.headers.common.Authorization;
   };
 
@@ -228,18 +176,15 @@ export const AuthProvider = ({ children }) => {
         token,
         loading,
         api: apiClient,
-        // Auth methods
         register,
         login,
-        googleSignIn,   // ← used in Login.jsx and Register.jsx
-        googleLogin,    // ← alias for backward compat
+        googleSignIn,
+        googleLogin,
         updateProfile,
         refreshUser,
         logout,
-        // OTP methods
         sendOTP,
         verifyOTP,
-        // Password reset
         forgotPassword,
         resetPassword,
       }}
