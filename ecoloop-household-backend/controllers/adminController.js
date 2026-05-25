@@ -1167,41 +1167,44 @@ exports.approveRecycler = async (req, res, next) => {
       return next(new AppError('Recycler not found', 404));
     }
 
-    // Create or update User record for the recycler
+    // Create or update User record for the recycler (non-blocking)
     if (recycler.email) {
-      let user = await User.findOne({ email: recycler.email });
-      
-      if (!user) {
-        // Create new User record for this recycler
-        user = await User.create({
-          email: recycler.email,
-          name: recycler.name || '',
-          role: 'RECYCLER',
-          city: recycler.city || '',
-          locality: recycler.locality || '',
-          phone: recycler.phone || '',
-          isVerified: true,
-          profileCompleted: true,
-          verificationApprovedAt: new Date()
-        });
-        console.log(`✅ Created User record for recycler ${recycler.email}`);
-      } else {
-        // Update existing User record
-        user = await User.findOneAndUpdate(
-          { email: recycler.email },
-          { 
+      try {
+        let user = await User.findOne({ email: recycler.email });
+        
+        if (!user) {
+          user = await User.create({
+            email: recycler.email,
+            name: recycler.name || '',
             role: 'RECYCLER',
+            city: recycler.city || '',
+            locality: recycler.locality || '',
+            phone: recycler.phone || '',
             isVerified: true,
-            name: recycler.name || user.name,
-            city: recycler.city || user.city,
-            locality: recycler.locality || user.locality,
-            phone: recycler.phone || user.phone,
             profileCompleted: true,
             verificationApprovedAt: new Date()
-          },
-          { new: true }
-        );
-        console.log(`✅ Updated User ${recycler.email} as verified recycler`);
+          });
+          console.log(`✅ Created User record for recycler ${recycler.email}`);
+        } else {
+          user = await User.findOneAndUpdate(
+            { email: recycler.email },
+            { 
+              role: 'RECYCLER',
+              isVerified: true,
+              name: recycler.name || user.name,
+              city: recycler.city || user.city,
+              locality: recycler.locality || user.locality,
+              phone: recycler.phone || user.phone,
+              profileCompleted: true,
+              verificationApprovedAt: new Date()
+            },
+            { new: true }
+          );
+          console.log(`✅ Updated User ${recycler.email} as verified recycler`);
+        }
+      } catch (userSyncError) {
+        // Log but do not fail - recycler is already approved in Recycler collection
+        console.error(`⚠️ User record sync failed for ${recycler.email} (recycler still approved):`, userSyncError.message);
       }
     }
 

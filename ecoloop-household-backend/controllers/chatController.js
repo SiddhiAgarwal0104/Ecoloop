@@ -1,127 +1,102 @@
+// controllers/chatController.js
 const ChatRoom = require('../models/ChatRoom');
 const ChatMessage = require('../models/ChatMessage');
 const CommunityRequest = require('../models/CommunityRequest');
 const { uploadImage } = require('../config/cloudinary');
 const { createNotification } = require('../utils/notificationHelper');
-const { getIO } = require('../config/socket');
+const { getIO } = require('../config/socket'); // ← single source of truth
 
-/**
- * Get chat rooms for a user
- * GET /api/community/chat/rooms
- */
+// ─────────────────────────────────────────────────────────────────────────────
+// HELPERS
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Emit an event to every socket in a chat room */
+const emitToRoom = (roomId, event, payload) => {
+  const io = getIO();
+  if (io) io.to(roomId.toString()).emit(event, payload);
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GET CHAT ROOMS for the logged-in user
+// GET /api/community/chat/rooms
+// ─────────────────────────────────────────────────────────────────────────────
 exports.getChatRooms = async (req, res) => {
   try {
     const chatRooms = await ChatRoom.find({
       'participants.userId': req.user.id,
       isActive: true,
     })
-      .populate('requestId')
+      .populate('requestId', 'itemName status')
       .populate('participants.userId', 'name email')
       .sort({ lastMessageAt: -1 });
 
-    res.status(200).json({
-      success: true,
-      data: chatRooms,
-    });
+    res.status(200).json({ success: true, data: chatRooms });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
-/**
- * Get chat room by CHAT ROOM ID
- * GET /api/community/chat/room-by-id/:chatRoomId
- */
+// ─────────────────────────────────────────────────────────────────────────────
+// GET CHAT ROOM by its own _id
+// GET /api/community/chat/room-by-id/:chatRoomId
+// ─────────────────────────────────────────────────────────────────────────────
 exports.getChatRoomById = async (req, res) => {
   try {
     const chatRoom = await ChatRoom.findById(req.params.chatRoomId)
-      .populate('requestId')
+      .populate('requestId', 'itemName status')
       .populate('participants.userId', 'name email');
 
     if (!chatRoom) {
-      return res.status(404).json({
-        success: false,
-        message: 'Chat room not found',
-      });
+      return res.status(404).json({ success: false, message: 'Chat room not found' });
     }
 
-    res.status(200).json({
-      success: true,
-      data: chatRoom,
-    });
+    res.status(200).json({ success: true, data: chatRoom });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
-
-/**
- * Get chat room by request ID
- * GET /api/community/chat/room/:requestId
- */
+// ─────────────────────────────────────────────────────────────────────────────
+// GET CHAT ROOM by requestId
+// GET /api/community/chat/room/:requestId
+// ─────────────────────────────────────────────────────────────────────────────
 exports.getOrCreateChatRoomByRequest = async (req, res) => {
   try {
-    const { requestId } = req.params;
-
-    let chatRoom = await ChatRoom.findOne({ requestId })
-      .populate('requestId')
+    const chatRoom = await ChatRoom.findOne({ requestId: req.params.requestId })
+      .populate('requestId', 'itemName status')
       .populate('participants.userId', 'name email');
 
     if (!chatRoom) {
-      return res.status(404).json({
-        success: false,
-        message: 'Chat room not found',
-      });
+      return res.status(404).json({ success: false, message: 'Chat room not found' });
     }
 
-    res.status(200).json({
-      success: true,
-      data: chatRoom,
-    });
+    res.status(200).json({ success: true, data: chatRoom });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
-
-/**
- * Get messages for a chat room
- * GET /api/community/chat/:chatRoomId/messages
- */
+// ─────────────────────────────────────────────────────────────────────────────
+// GET MESSAGES (paginated, oldest first)
+// GET /api/community/chat/:chatRoomId/messages
+// ─────────────────────────────────────────────────────────────────────────────
 exports.getChatMessages = async (req, res) => {
   try {
     const { chatRoomId } = req.params;
     const { page = 1, limit = 50 } = req.query;
 
-    // Verify user is participant
     const chatRoom = await ChatRoom.findById(chatRoomId);
     if (!chatRoom) {
-      return res.status(404).json({
-        success: false,
-        message: 'Chat room not found',
-      });
+      return res.status(404).json({ success: false, message: 'Chat room not found' });
     }
 
     const isParticipant = chatRoom.participants.some(
       (p) => p.userId.toString() === req.user.id
     );
     if (!isParticipant) {
-      return res.status(403).json({
-        success: false,
-        message: 'Not authorized',
-      });
+      return res.status(403).json({ success: false, message: 'Not authorized' });
     }
 
-    // Get messages with pagination
     const skip = (page - 1) * limit;
     const messages = await ChatMessage.find({ chatRoomId })
       .populate('senderId', 'name email')
@@ -133,451 +108,286 @@ exports.getChatMessages = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      data: messages.reverse(), // Reverse to show oldest first
-      pagination: {
-        total,
-        page: parseInt(page),
-        pages: Math.ceil(total / limit),
-      },
+      data: messages.reverse(), // oldest → newest
+      pagination: { total, page: parseInt(page), pages: Math.ceil(total / limit) },
     });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
-/**
- * Send a text message
- * POST /api/community/chat/:chatRoomId/message
- */
+// ─────────────────────────────────────────────────────────────────────────────
+// SEND TEXT MESSAGE
+// POST /api/community/chat/:chatRoomId/message
+// ─────────────────────────────────────────────────────────────────────────────
 exports.sendMessage = async (req, res) => {
   try {
     const { chatRoomId } = req.params;
     const { content, type = 'text' } = req.body;
 
-    // ✅ IMPORTANT VALIDATION
-    if (!content || !content.trim()) {
-      return res.status(400).json({
-        success: false,
-        message: 'Message content is required',
-      });
+    if (!content?.trim()) {
+      return res.status(400).json({ success: false, message: 'Message content is required' });
     }
 
     const chatRoom = await ChatRoom.findById(chatRoomId).populate(
       'participants.userId',
       'name email'
     );
-
     if (!chatRoom) {
-      return res.status(404).json({
-        success: false,
-        message: 'Chat room not found',
-      });
+      return res.status(404).json({ success: false, message: 'Chat room not found' });
     }
 
-    // Check if user is a participant in this chat room
-    const isParticipant = chatRoom.participants.some((p) => {
-      const participantId = p.userId._id || p.userId;
-      return participantId.toString() === req.user.id.toString();
-    });
-
+    const isParticipant = chatRoom.participants.some(
+      (p) => (p.userId._id || p.userId).toString() === req.user.id.toString()
+    );
     if (!isParticipant) {
-      return res.status(403).json({
-        success: false,
-        message: 'Not authorized',
-      });
+      return res.status(403).json({ success: false, message: 'Not authorized' });
     }
 
     const message = await ChatMessage.create({
       chatRoomId,
       senderId: req.user.id,
       type,
-      content,
+      content: content.trim(),
     });
-
     await message.populate('senderId', 'name email');
 
     chatRoom.lastMessageAt = new Date();
     await chatRoom.save();
 
-    // Emit via Socket.IO if available
-    const io = getIO();
-    if (io) {
-      io.to(chatRoomId).emit('newMessage', message);
-    }
+    // ── Real-time delivery ──────────────────────────────────────────
+    emitToRoom(chatRoomId, 'newMessage', message);
 
-    res.status(201).json({
-      success: true,
-      data: message,
-    });
+    res.status(201).json({ success: true, data: message });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
-/**
- * Send an image message
- * POST /api/community/chat/:chatRoomId/image
- */
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SEND IMAGE MESSAGE
+// POST /api/community/chat/:chatRoomId/image
+// ─────────────────────────────────────────────────────────────────────────────
 exports.sendImageMessage = async (req, res) => {
   try {
     const { chatRoomId } = req.params;
 
     if (!req.file) {
-      return res.status(400).json({
-        success: false,
-        message: 'No image provided',
-      });
+      return res.status(400).json({ success: false, message: 'No image provided' });
     }
 
-    // Verify chat room and user participation
     const chatRoom = await ChatRoom.findById(chatRoomId).populate(
       'participants.userId',
       'name email'
     );
     if (!chatRoom) {
-      return res.status(404).json({
-        success: false,
-        message: 'Chat room not found',
-      });
+      return res.status(404).json({ success: false, message: 'Chat room not found' });
     }
 
-    // Check if user is a participant in this chat room
-    const isParticipant = chatRoom.participants.some((p) => {
-      const participantId = p.userId._id || p.userId;
-      return participantId.toString() === req.user.id.toString();
-    });
+    const isParticipant = chatRoom.participants.some(
+      (p) => (p.userId._id || p.userId).toString() === req.user.id.toString()
+    );
     if (!isParticipant) {
-      return res.status(403).json({
-        success: false,
-        message: 'Not authorized',
-      });
+      return res.status(403).json({ success: false, message: 'Not authorized' });
     }
 
-    // Upload image
     const uploadResult = await uploadImage(req.file.buffer, 'chat-images');
 
-    // Create message
     const message = await ChatMessage.create({
       chatRoomId,
       senderId: req.user.id,
       type: 'image',
       content: uploadResult.url,
     });
-
     await message.populate('senderId', 'name email');
 
-    // Update chat room
     chatRoom.lastMessageAt = new Date();
     await chatRoom.save();
 
-    // Get recipient
+    // Notify the other participant
     const recipient = chatRoom.participants.find(
-      (p) => p.userId._id.toString() !== req.user.id
+      (p) => (p.userId._id || p.userId).toString() !== req.user.id.toString()
     );
-
-    // Create notification
-    await createNotification({
-      userId: recipient.userId._id,
-      type: 'NEW_MESSAGE',
-      title: 'New image',
-      message: `You received an image in your chat`,
-      relatedId: chatRoom._id,
-      relatedType: 'ChatRoom',
-    });
-
-    // Emit socket event if available
-    const io = getIO();
-    if (io) {
-      io.to(chatRoomId).emit('newMessage', message);
+    if (recipient) {
+      await createNotification({
+        userId: recipient.userId._id || recipient.userId,
+        type: 'NEW_MESSAGE',
+        title: 'New image',
+        message: 'You received an image in your chat',
+        relatedId: chatRoom._id,
+        relatedType: 'ChatRoom',
+      });
     }
 
-    res.status(201).json({
-      success: true,
-      data: message,
-    });
+    // ── Real-time delivery ──────────────────────────────────────────
+    emitToRoom(chatRoomId, 'newMessage', message);
+
+    res.status(201).json({ success: true, data: message });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
-/**
- * Lender confirms lending
- * POST /api/community/chat/:chatRoomId/confirm-lend
- */
+// ─────────────────────────────────────────────────────────────────────────────
+// SHARED: handle "both confirmed" logic
+// ─────────────────────────────────────────────────────────────────────────────
+const handleBothConfirmed = async (chatRoom) => {
+  const lender = chatRoom.participants.find((p) => p.role === 'lender');
+  const borrower = chatRoom.participants.find((p) => p.role === 'requester');
+
+  const request = await CommunityRequest.findById(chatRoom.requestId);
+  if (request) {
+    request.status = 'CONFIRMED';
+    request.acceptedBy = lender.userId;
+    await request.save();
+  }
+
+  // Close all other chat rooms for this request
+  await ChatRoom.updateMany(
+    { requestId: chatRoom.requestId, _id: { $ne: chatRoom._id } },
+    { isActive: false }
+  );
+
+  const notifPayload = {
+    type: 'LENDING_CONFIRMED',
+    title: 'Lending confirmed!',
+    relatedId: request?._id,
+    relatedType: 'CommunityRequest',
+  };
+
+  await createNotification({
+    userId: borrower.userId,
+    ...notifPayload,
+    message: `Your request for "${request?.itemName}" has been confirmed`,
+  });
+  await createNotification({
+    userId: lender.userId,
+    ...notifPayload,
+    message: `You confirmed to lend "${request?.itemName}"`,
+  });
+
+  emitToRoom(chatRoom._id, 'lendingConfirmed', {
+    requestId: request?._id,
+    status: 'CONFIRMED',
+  });
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LENDER CONFIRMS LENDING
+// POST /api/community/chat/:chatRoomId/confirm-lend
+// ─────────────────────────────────────────────────────────────────────────────
 exports.confirmLend = async (req, res) => {
   try {
-    const { chatRoomId } = req.params;
-
-    const chatRoom = await ChatRoom.findById(chatRoomId).populate('requestId');
+    const chatRoom = await ChatRoom.findById(req.params.chatRoomId).populate('requestId');
     if (!chatRoom) {
-      return res.status(404).json({
-        success: false,
-        message: 'Chat room not found',
-      });
+      return res.status(404).json({ success: false, message: 'Chat room not found' });
     }
 
-    // Verify user is lender
     const lender = chatRoom.participants.find((p) => p.role === 'lender');
-    const lenderId = lender.userId._id || lender.userId;
-    if (lenderId.toString() !== req.user.id.toString()) {
-      return res.status(403).json({
-        success: false,
-        message: 'Only lender can confirm lending',
-      });
+    if ((lender.userId._id || lender.userId).toString() !== req.user.id.toString()) {
+      return res.status(403).json({ success: false, message: 'Only lender can confirm lending' });
     }
 
-    // Update confirmation
     chatRoom.lenderConfirmed = true;
     await chatRoom.save();
 
-    // Check if both confirmed
     if (chatRoom.lenderConfirmed && chatRoom.borrowerConfirmed) {
-      // Update request status
-      const request = await CommunityRequest.findById(chatRoom.requestId);
-      request.status = 'CONFIRMED';
-      request.acceptedBy = lender.userId;
-      await request.save();
-
-      // Close other chat rooms for this request
-      await ChatRoom.updateMany(
-        {
-          requestId: chatRoom.requestId,
-          _id: { $ne: chatRoom._id },
-        },
-        { isActive: false }
-      );
-
-      const borrower = chatRoom.participants.find((p) => p.role === 'requester');
-
-      // Notify both participants
-      await createNotification({
-        userId: borrower.userId,
-        type: 'LENDING_CONFIRMED',
-        title: 'Lending confirmed!',
-        message: `Your request for "${request.itemName}" has been confirmed`,
-        relatedId: request._id,
-        relatedType: 'CommunityRequest',
-      });
-
-      await createNotification({
-        userId: lender.userId,
-        type: 'LENDING_CONFIRMED',
-        title: 'Lending confirmed!',
-        message: `You have confirmed to lend "${request.itemName}"`,
-        relatedId: request._id,
-        relatedType: 'CommunityRequest',
-      });
-
-      // Emit socket event if available
-      const io = getIO();
-      if (io) {
-        io.to(chatRoomId).emit('lendingConfirmed', {
-          requestId: request._id,
-          status: 'CONFIRMED',
-        });
-      }
+      await handleBothConfirmed(chatRoom);
     }
 
-    res.status(200).json({
-      success: true,
-      data: chatRoom,
-    });
+    res.status(200).json({ success: true, data: chatRoom });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
-/**
- * Borrower confirms borrowing
- * POST /api/community/chat/:chatRoomId/confirm-borrow
- */
+// ─────────────────────────────────────────────────────────────────────────────
+// BORROWER CONFIRMS BORROWING
+// POST /api/community/chat/:chatRoomId/confirm-borrow
+// ─────────────────────────────────────────────────────────────────────────────
 exports.confirmBorrow = async (req, res) => {
   try {
-    const { chatRoomId } = req.params;
-
-    const chatRoom = await ChatRoom.findById(chatRoomId).populate('requestId');
+    const chatRoom = await ChatRoom.findById(req.params.chatRoomId).populate('requestId');
     if (!chatRoom) {
-      return res.status(404).json({
-        success: false,
-        message: 'Chat room not found',
-      });
+      return res.status(404).json({ success: false, message: 'Chat room not found' });
     }
 
-    // Verify user is borrower
     const borrower = chatRoom.participants.find((p) => p.role === 'requester');
-    const borrowerId = borrower.userId._id || borrower.userId;
-    if (borrowerId.toString() !== req.user.id.toString()) {
-      return res.status(403).json({
-        success: false,
-        message: 'Only borrower can confirm borrowing',
-      });
+    if ((borrower.userId._id || borrower.userId).toString() !== req.user.id.toString()) {
+      return res.status(403).json({ success: false, message: 'Only borrower can confirm' });
     }
 
-    // Update confirmation
     chatRoom.borrowerConfirmed = true;
     await chatRoom.save();
 
-    // Check if both confirmed
     if (chatRoom.lenderConfirmed && chatRoom.borrowerConfirmed) {
-      const lender = chatRoom.participants.find((p) => p.role === 'lender');
-      
-      // Update request status
-      const request = await CommunityRequest.findById(chatRoom.requestId);
-      request.status = 'CONFIRMED';
-      request.acceptedBy = lender.userId;
-      await request.save();
-
-      // Close other chat rooms for this request
-      await ChatRoom.updateMany(
-        {
-          requestId: chatRoom.requestId,
-          _id: { $ne: chatRoom._id },
-        },
-        { isActive: false }
-      );
-
-      // Notify both participants
-      await createNotification({
-        userId: borrower.userId,
-        type: 'LENDING_CONFIRMED',
-        title: 'Lending confirmed!',
-        message: `Your request for "${request.itemName}" has been confirmed`,
-        relatedId: request._id,
-        relatedType: 'CommunityRequest',
-      });
-
-      await createNotification({
-        userId: lender.userId,
-        type: 'LENDING_CONFIRMED',
-        title: 'Lending confirmed!',
-        message: `You have confirmed to lend "${request.itemName}"`,
-        relatedId: request._id,
-        relatedType: 'CommunityRequest',
-      });
-
-      // Emit socket event if available
-      const io = getIO();
-      if (io) {
-        io.to(chatRoomId).emit('lendingConfirmed', {
-          requestId: request._id,
-          status: 'CONFIRMED',
-        });
-      }
+      await handleBothConfirmed(chatRoom);
     }
 
-    res.status(200).json({
-      success: true,
-      data: chatRoom,
-    });
+    res.status(200).json({ success: true, data: chatRoom });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
-/**
- * Mark item as handed over by lender
- * POST /api/chat/:chatRoomId/hand-over
- */
+// ─────────────────────────────────────────────────────────────────────────────
+// MARK HANDED OVER (lender)
+// POST /api/community/chat/:chatRoomId/hand-over
+// ─────────────────────────────────────────────────────────────────────────────
 exports.markHandedOver = async (req, res) => {
   try {
-    const { chatRoomId } = req.params;
-
-    const chatRoom = await ChatRoom.findById(chatRoomId);
+    const chatRoom = await ChatRoom.findById(req.params.chatRoomId);
     if (!chatRoom) {
-      return res.status(404).json({
-        success: false,
-        message: 'Chat room not found',
-      });
+      return res.status(404).json({ success: false, message: 'Chat room not found' });
     }
 
-    // Verify user is lender
     const lender = chatRoom.participants.find((p) => p.role === 'lender');
-    const lenderId = lender.userId._id || lender.userId;
-    if (lenderId.toString() !== req.user.id.toString()) {
-      return res.status(403).json({
-        success: false,
-        message: 'Only lender can mark as handed over',
-      });
+    if ((lender.userId._id || lender.userId).toString() !== req.user.id.toString()) {
+      return res.status(403).json({ success: false, message: 'Only lender can mark as handed over' });
+    }
+
+    if (!chatRoom.lenderConfirmed || !chatRoom.borrowerConfirmed) {
+      return res.status(400).json({ success: false, message: 'Both must confirm before handover' });
     }
 
     chatRoom.handedOver = true;
     await chatRoom.save();
 
-    // Emit socket event if available
-    const io = getIO();
-    if (io) {
-      io.to(chatRoomId).emit('itemHandedOver', { handedOver: true });
-    }
+    emitToRoom(chatRoom._id, 'itemHandedOver', { chatRoomId: chatRoom._id, handedOver: true });
 
-    res.status(200).json({
-      success: true,
-      data: chatRoom,
-    });
+    res.status(200).json({ success: true, data: chatRoom });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
-/**
- * Mark item as picked up by borrower
- * POST /api/chat/:chatRoomId/picked-up
- */
+// ─────────────────────────────────────────────────────────────────────────────
+// MARK PICKED UP (borrower)
+// POST /api/community/chat/:chatRoomId/picked-up
+// ─────────────────────────────────────────────────────────────────────────────
 exports.markPickedUp = async (req, res) => {
   try {
-    const { chatRoomId } = req.params;
-
-    const chatRoom = await ChatRoom.findById(chatRoomId);
+    const chatRoom = await ChatRoom.findById(req.params.chatRoomId);
     if (!chatRoom) {
-      return res.status(404).json({
-        success: false,
-        message: 'Chat room not found',
-      });
+      return res.status(404).json({ success: false, message: 'Chat room not found' });
     }
 
-    // Verify user is borrower
     const borrower = chatRoom.participants.find((p) => p.role === 'requester');
-    const borrowerId = borrower.userId._id || borrower.userId;
-    if (borrowerId.toString() !== req.user.id.toString()) {
-      return res.status(403).json({
-        success: false,
-        message: 'Only borrower can mark as picked up',
-      });
+    if ((borrower.userId._id || borrower.userId).toString() !== req.user.id.toString()) {
+      return res.status(403).json({ success: false, message: 'Only borrower can mark as picked up' });
+    }
+
+    if (!chatRoom.handedOver) {
+      return res.status(400).json({ success: false, message: 'Item must be handed over first' });
     }
 
     chatRoom.pickedUp = true;
     await chatRoom.save();
 
-    // Emit socket event if available
-    const io = getIO();
-    if (io) {
-      io.to(chatRoomId).emit('itemPickedUp', { pickedUp: true });
-    }
+    emitToRoom(chatRoom._id, 'itemPickedUp', { chatRoomId: chatRoom._id, pickedUp: true });
 
-    res.status(200).json({
-      success: true,
-      data: chatRoom,
-    });
+    res.status(200).json({ success: true, data: chatRoom });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
