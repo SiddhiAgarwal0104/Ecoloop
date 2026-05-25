@@ -208,19 +208,19 @@ const getLocalityRequests = async (req, res) => {
       
       console.log(`✅ Found ${nearbyRequests.length} requests within ${RADIUS_KM} km + ${requestsWithoutLocation.length} requests without location data = ${finalRequests.length} total`);
 
-    res.status(200).json({
-      success: true,
-      data: finalRequests,
-      radius: RADIUS_KM,
-      debug: {
-        userCity: city,
-        userLocation: { lat: req.user.location?.latitude, lon: req.user.location?.longitude },
-        totalRequestsInCity: allRequests.length,
-        requestsWithLocation: requestsWithLocation.length,
-        requestsWithoutLocation: requestsWithoutLocation.length,
-        nearbyCount: nearbyRequests.length,
-      },
-      message: `Found ${finalRequests.length} requests in your area`,
+      return res.status(200).json({
+        success: true,
+        data: finalRequests,
+        radius: RADIUS_KM,
+        debug: {
+          userCity: city,
+          userLocation: { lat: req.user.location?.latitude, lon: req.user.location?.longitude },
+          totalRequestsInCity: allRequests.length,
+          requestsWithLocation: requestsWithLocation.length,
+          requestsWithoutLocation: requestsWithoutLocation.length,
+          nearbyCount: nearbyRequests.length,
+        },
+        message: `Found ${finalRequests.length} requests in your area`,
       });
     }
 
