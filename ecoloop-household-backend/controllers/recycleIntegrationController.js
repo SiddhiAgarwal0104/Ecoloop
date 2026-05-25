@@ -1,3 +1,4 @@
+
 const axios = require('axios');
 const RequestAcceptance = require('../models/RequestAcceptance');
 const Recycle = require('../models/Recycle');
@@ -25,11 +26,11 @@ exports.getRecycleDetails = async (req, res, next) => {
       return next(new AppError('Recycle request ID is required', 400));
     }
 
-    // Get the recycle request (don't populate userId - it's from household backend)
+    // Populate userId to get donor's name and phone
     const recycle = await Recycle.findOne({ 
       _id: recycleId, 
       assignedRecycler: recyclerId 
-    });
+    }).populate('userId', 'name phone');
 
     if (!recycle) {
       return next(new AppError('Recycle request not found or you are not assigned to it', 404));
@@ -37,9 +38,14 @@ exports.getRecycleDetails = async (req, res, next) => {
 
     console.log(`✅ Fetched recycle details for ${recycleId}`);
 
+    // Add userName and userPhone to response for frontend
+    const recycleData = recycle.toObject();
+    recycleData.userName = recycle.userId?.name || 'N/A';
+    recycleData.userPhone = recycle.userId?.phone || null;
+
     res.status(200).json({
       success: true,
-      data: recycle,
+      data: recycleData,
       message: 'Recycle request details retrieved'
     });
   } catch (error) {
@@ -517,4 +523,3 @@ exports.testDBNotification = async (req, res, next) => {
     next(error);
   }
 };
-

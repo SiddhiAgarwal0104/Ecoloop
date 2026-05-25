@@ -1,3 +1,4 @@
+
 const User = require('../models/User');
 const Admin = require('../models/Admin');
 const Donation = require('../models/Donation');
@@ -1271,14 +1272,33 @@ exports.rejectRecycler = async (req, res, next) => {
  */
 exports.getRecyclesOverview = async (req, res, next) => {
   try {
-    const { page = 1, limit = 10, status = '', locality = '' } = req.query;
+    const { page = 1, limit = 10, status = '', locality = '', search = '' } = req.query;
 
-    const filter = {};
+    const adminCity = await getAdminCity(req.user._id);
+    if (!adminCity) {
+      return next(new AppError('Admin profile incomplete. Please complete your profile first.', 400));
+    }
+
+    const cityUsers = await User.find({
+      city: { $regex: `^${adminCity}$`, $options: 'i' },
+      role: 'HOUSEHOLD'
+    }).select('_id');
+    const cityUserIds = cityUsers.map(u => u._id);
+
+    const filter = { userId: { $in: cityUserIds } };
     if (status) filter.status = status;
-    if (locality) filter.locality = new RegExp(locality, 'i');
+    if (locality) {
+      const localityUsers = await User.find({
+        city: { $regex: `^${adminCity}$`, $options: 'i' },
+        locality: new RegExp(locality, 'i'),
+        role: 'HOUSEHOLD'
+      }).select('_id');
+      filter.userId = { $in: localityUsers.map(u => u._id) };
+    }
+    if (search) filter.wasteType = new RegExp(search, 'i');
 
     const recycles = await Recycle.find(filter)
-      .populate('userId', 'name email phone')
+      .populate('userId', 'name email phone locality')
       .populate('assignedRecycler', 'name email phone')
       .skip((page - 1) * limit)
       .limit(parseInt(limit))
@@ -1300,16 +1320,62 @@ exports.getRecyclesOverview = async (req, res, next) => {
     next(error);
   }
 };
-
 /**
  * Get Recycler Ratings
  */
+// exports.getRecyclerRatingsOverview = async (req, res, next) => {
+//   try {
+//     const { page = 1, limit = 10, locality = '', sortBy = 'rating' } = req.query;
+
+//     const filter = {
+//       verificationStatus: 'APPROVED'
+//     };
+//     if (locality) {
+//       filter.locality = new RegExp(locality, 'i');
+//     }
+
+//     const sortOptions = {
+//       'rating': { rating: -1 },
+//       'completed': { completedRequests: -1 },
+//       'waste': { totalWasteCollected: -1 }
+//     };
+
+//     const recyclers = await Recycler.find(filter)
+//       .select('name email phone locality rating completedRequests totalWasteCollected reviews')
+//       .skip((page - 1) * limit)
+//       .limit(parseInt(limit))
+//       .sort(sortOptions[sortBy] || sortOptions.rating)
+//       .populate('reviews', 'rating comment');
+
+//     const total = await Recycler.countDocuments(filter);
+
+//     res.status(200).json({
+//       success: true,
+//       data: recyclers,
+//       pagination: {
+//         page: parseInt(page),
+//         limit: parseInt(limit),
+//         total,
+//         pages: Math.ceil(total / limit)
+//       }
+//     });
+//   } catch (error) {
+//     next(error);
+//   }
+// };
+
 exports.getRecyclerRatingsOverview = async (req, res, next) => {
   try {
     const { page = 1, limit = 10, locality = '', sortBy = 'rating' } = req.query;
 
+    const adminCity = await getAdminCity(req.user._id);
+    if (!adminCity) {
+      return next(new AppError('Admin profile incomplete. Please complete your profile first.', 400));
+    }
+
     const filter = {
-      verificationStatus: 'APPROVED'
+      verificationStatus: 'APPROVED',
+      city: { $regex: `^${adminCity}$`, $options: 'i' }
     };
     if (locality) {
       filter.locality = new RegExp(locality, 'i');
