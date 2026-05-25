@@ -39,6 +39,13 @@ const recyclerSchema = new mongoose.Schema({
     select: false // Don't return password by default
   },
 
+  // ── ADDED: Email OTP verification status ──────────────────────────────────
+  isEmailVerified: {
+    type: Boolean,
+    default: false   // set to true after OTP confirmed during signup
+  },
+  // ─────────────────────────────────────────────────────────────────────────
+
   // Location Information
   address: {
     type: String,

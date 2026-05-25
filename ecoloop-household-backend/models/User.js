@@ -31,6 +31,14 @@ const userSchema = new mongoose.Schema({
     enum: ['HOUSEHOLD', 'NGO', 'RECYCLER', 'ADMIN'],
     default: 'HOUSEHOLD'
   },
+
+  // ── ADDED: Email OTP verification status ──────────────────────────────────
+  isEmailVerified: {
+    type: Boolean,
+    default: false   // set to true after OTP confirmed; Google users skip OTP
+  },
+  // ─────────────────────────────────────────────────────────────────────────
+
   isVerified: {
     type: Boolean,
     default: function() {
@@ -131,7 +139,6 @@ userSchema.virtual('isProfileComplete').get(function () {
     this.address?.trim()
   );
 });
-
 
 // Hash password before saving
 userSchema.pre('save', async function(next) {

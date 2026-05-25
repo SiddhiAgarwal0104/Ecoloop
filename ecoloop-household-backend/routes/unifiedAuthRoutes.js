@@ -3,97 +3,54 @@ const router = express.Router();
 const {
   signup,
   login,
+  sendOTP,
+  verifyOTP,
+  forgotPassword,
+  resetPassword,
+  googleAuth,
   getProfile,
   updateProfile,
-  logout
+  logout,
 } = require('../controllers/unifiedAuthController');
 const { requireAuth } = require('../middleware/roleBasedAuth');
 
-/**
- * UNIFIED AUTH ROUTES
- * Central authentication endpoint for all three roles: household, ngo, recycler
- * 
- * Key Features:
- * - Single signup/login endpoint for all roles
- * - Role-based token generation
- * - Role field in JWT payload
- * - Role-based access control via middleware
- */
+// ── Public Routes ─────────────────────────────────────────────────────────────
 
-/**
- * Register/Signup new user
- * @route POST /api/auth/signup
- * @access Public
- * @param {Object} req.body
- * @param {string} req.body.email - User email (required)
- * @param {string} req.body.password - Password min 6 chars (required)
- * @param {string} req.body.passwordConfirm - Confirm password (required)
- * @param {string} req.body.name - User full name
- * @param {string} req.body.phone - User phone number
- * @param {string} req.body.role - User role: 'household', 'ngo', or 'recycler' (required)
- * @returns {Object} {success, token, user, message}
- * @example
- * POST /api/auth/signup
- * {
- *   "email": "recycler@example.com",
- *   "password": "password123",
- *   "passwordConfirm": "password123",
- *   "name": "John Recycler",
- *   "phone": "9876543210",
- *   "role": "recycler"
- * }
- */
+// Step 1 of signup: send OTP to email before account creation
+// POST /api/auth/send-otp  { email, purpose: 'verify' | 'reset' }
+router.post('/send-otp', sendOTP);
+
+// Step 2 of signup: confirm the OTP is valid
+// POST /api/auth/verify-otp  { email, otp }
+router.post('/verify-otp', verifyOTP);
+
+// Step 3 of signup: create the account (body must include otpVerified: true)
+// POST /api/auth/signup  { email, password, passwordConfirm, name, phone, role, otpVerified }
 router.post('/signup', signup);
 
-/**
- * Login user
- * @route POST /api/auth/login
- * @access Public
- * @param {Object} req.body
- * @param {string} req.body.email - User email (required)
- * @param {string} req.body.password - User password (required)
- * @param {string} req.body.role - User role: 'household', 'ngo', or 'recycler' (optional, for optimization)
- * @returns {Object} {success, token, user, message}
- * @example
- * POST /api/auth/login
- * {
- *   "email": "recycler@example.com",
- *   "password": "password123",
- *   "role": "recycler"
- * }
- */
+// Login (unchanged behaviour)
+// POST /api/auth/login  { email, password, role? }
 router.post('/login', login);
 
-/**
- * Get current user profile
- * @route GET /api/auth/profile
- * @access Private - requires valid JWT token
- * @returns {Object} {success, data: userProfile}
- */
-router.get('/profile', requireAuth, getProfile);
+// Google OAuth (unchanged behaviour, bug-fixed)
+// POST /api/auth/google  { credential, role? }
+router.post('/google', googleAuth);
 
-/**
- * Update user profile
- * @route PUT /api/auth/profile
- * @access Private - requires valid JWT token
- * @param {Object} req.body
- * @param {string} req.body.phone - Phone number
- * @param {string} req.body.city - City name
- * @param {string} req.body.locality - Locality/Area
- * @param {string} req.body.pincode - Pincode (required for Household)
- * @param {string} req.body.address - Full address
- * @param {number} req.body.latitude - Location latitude (required for NGO)
- * @param {number} req.body.longitude - Location longitude (required for NGO)
- * @returns {Object} {success, message, data: {user}}
- */
+// Forgot password — sends a reset OTP to the email
+// POST /api/auth/forgot-password  { email }
+router.post('/forgot-password', forgotPassword);
+
+// Reset password — verifies OTP then updates password
+// POST /api/auth/reset-password  { email, otp, newPassword, confirmPassword }
+router.post('/reset-password', resetPassword);
+
+// ── Protected Routes ──────────────────────────────────────────────────────────
+
+router.get('/profile', requireAuth, getProfile);
+router.get('/me', requireAuth, getProfile);       // alias kept for compatibility
+
 router.put('/profile', requireAuth, updateProfile);
 
-/**
- * Logout user
- * @route POST /api/auth/logout
- * @access Private - requires valid JWT token
- * @returns {Object} {success, message}
- */
 router.post('/logout', requireAuth, logout);
 
 module.exports = router;
