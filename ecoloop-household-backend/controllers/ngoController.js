@@ -1,6 +1,7 @@
 const Donation = require('../models/Donation');
 const Notification = require('../models/Notification');
 const AppError = require('../utils/appError');
+const User = require('../models/User');
 
 // ================= CALCULATE DISTANCE (Haversine Formula) =================
 const calculateDistance = (lat1, lon1, lat2, lon2) => {
@@ -15,9 +16,6 @@ const calculateDistance = (lat1, lon1, lat2, lon2) => {
   return R * c;
 };
 
-// @desc    Get all available donations (within NGO's service radius)
-// @route   GET /api/ngo/donations/available
-// @access  Private (NGO only)
 exports.getAvailableDonations = async (req, res, next) => {
   try {
     const { radius = 50, category } = req.query;
@@ -61,7 +59,7 @@ exports.getAvailableDonations = async (req, res, next) => {
       .populate('userId', 'name email phone')
       .sort({ createdAt: -1 });
 
-    console.log(`📦 Found ${donations.length} total available donations`);
+    console.log(`Found ${donations.length} total available donations`);
 
     // Calculate distance and filter by radius
     const donationsWithDistance = [];
@@ -71,7 +69,7 @@ exports.getAvailableDonations = async (req, res, next) => {
       if (!donation.pickupLocation || 
           typeof donation.pickupLocation.latitude !== 'number' ||
           typeof donation.pickupLocation.longitude !== 'number') {
-        console.warn('⚠️ Skipping donation with invalid location:', donation._id);
+        console.warn('Skipping donation with invalid location:', donation._id);
         continue;
       }
 
@@ -84,7 +82,7 @@ exports.getAvailableDonations = async (req, res, next) => {
 
       const roundedDistance = Math.round(distance * 10) / 10;
 
-      console.log(`📊 Donation ${donation._id}: ${roundedDistance} km away`);
+      console.log(`Donation ${donation._id}: ${roundedDistance} km away`);
 
       if (roundedDistance <= parseFloat(radius)) {
         donationsWithDistance.push({
@@ -97,7 +95,7 @@ exports.getAvailableDonations = async (req, res, next) => {
     // Sort by nearest first
     donationsWithDistance.sort((a, b) => a.distance - b.distance);
 
-    console.log(`✅ Returning ${donationsWithDistance.length} donations within ${radius}km`);
+    console.log(`Returning ${donationsWithDistance.length} donations within ${radius}km`);
 
     res.status(200).json({
       success: true,
@@ -105,7 +103,7 @@ exports.getAvailableDonations = async (req, res, next) => {
       data: donationsWithDistance,
     });
   } catch (error) {
-    console.error('❌ Error in getAvailableDonations:', error);
+    console.error('Error in getAvailableDonations:', error);
     next(error);
   }
 };
@@ -144,7 +142,7 @@ exports.getDonationDetails = async (req, res, next) => {
       },
     });
   } catch (error) {
-    console.error('❌ Error fetching donation:', error);
+    console.error('Error fetching donation:', error);
     next(error);
   }
 };
@@ -177,7 +175,7 @@ exports.acceptDonation = async (req, res, next) => {
       donationId: donation._id,
     });
 
-    console.log(`✅ Donation ${donation._id} accepted by NGO ${req.user.name}`);
+    console.log(`Donation ${donation._id} accepted by NGO ${req.user.name}`);
 
     res.status(200).json({
       success: true,
@@ -185,7 +183,7 @@ exports.acceptDonation = async (req, res, next) => {
       data: donation,
     });
   } catch (error) {
-    console.error('❌ Error accepting donation:', error);
+    console.error('Error accepting donation:', error);
     next(error);
   }
 };
@@ -215,7 +213,7 @@ exports.getAcceptedDonations = async (req, res, next) => {
       data: donations,
     });
   } catch (error) {
-    console.error('❌ Error fetching accepted donations:', error);
+    console.error('Error fetching accepted donations:', error);
     next(error);
   }
 };
@@ -262,7 +260,7 @@ exports.updateDonationStatus = async (req, res, next) => {
       });
     }
 
-    console.log(`✅ Donation ${donation._id} status updated to ${status}`);
+    console.log(`Donation ${donation._id} status updated to ${status}`);
 
     res.status(200).json({
       success: true,
@@ -270,7 +268,7 @@ exports.updateDonationStatus = async (req, res, next) => {
       data: donation,
     });
   } catch (error) {
-    console.error('❌ Error updating donation status:', error);
+    console.error('Error updating donation status:', error);
     next(error);
   }
 };
@@ -320,7 +318,7 @@ exports.getAllVerifiedNGOs = async (req, res, next) => {
     // Enrich NGO data with donation counts
     const enrichedNGOs = await Promise.all(
       ngos.map(async (ngo) => {
-        const Donation = require('../models/Donation');
+        
         
         const enrolledDonations = await Donation.countDocuments({ 
           assignedNGO: ngo._id,
@@ -349,7 +347,7 @@ exports.getAllVerifiedNGOs = async (req, res, next) => {
       })
     );
 
-    console.log(`✅ Found ${ngos.length} verified NGOs out of ${total} total`);
+    console.log(`Found ${ngos.length} verified NGOs out of ${total} total`);
 
     res.status(200).json({
       success: true,
@@ -363,7 +361,7 @@ exports.getAllVerifiedNGOs = async (req, res, next) => {
       data: enrichedNGOs
     });
   } catch (error) {
-    console.error('❌ Error fetching NGOs:', error);
+    console.error('Error fetching NGOs:', error);
     next(error);
   }
 };

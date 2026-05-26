@@ -1,13 +1,14 @@
 const Notification = require('../models/Notification');
 
-exports.createNotification = async (userId, message, type = 'GENERAL', relatedId = null, relatedModel = null) => {
+exports.createNotification = async ({ userId, title, message, type = 'GENERAL', relatedId = null, relatedType = null }) => {
   try {
     const notification = await Notification.create({
       userId,
+      title: title || type,
       message,
       type,
       relatedId,
-      relatedModel
+      relatedModel: relatedType
     });
     return notification;
   } catch (error) {
