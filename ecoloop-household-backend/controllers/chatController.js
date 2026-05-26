@@ -91,7 +91,7 @@ exports.getChatMessages = async (req, res) => {
     }
 
     const isParticipant = chatRoom.participants.some(
-      (p) => p.userId.toString() === req.user.id
+      (p) => p.userId.toString() === req.user.id.toString()
     );
     if (!isParticipant) {
       return res.status(403).json({ success: false, message: 'Not authorized' });
