@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Leaf, Mail, Lock, User, Home } from 'lucide-react';
-import axios from 'axios';
+import axios from '../api/axios';
 
 const AdminRegister = () => {
   const [name, setName] = useState('');
@@ -38,7 +38,7 @@ const AdminRegister = () => {
     setLoading(true);
 
     try {
-      const response = await axios.post('${import.meta.env.VITE_API_URL}/api/admin/register', {
+      const response = await axios.post(`${import.meta.env.VITE_API_URL}/api/admin/register`, {
         name,
         email,
         password
