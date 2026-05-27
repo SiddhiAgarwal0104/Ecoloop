@@ -1,30 +1,14 @@
-const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
 
 /**
  * Email Service - Handles all transactional emails
- * Uses nodemailer with SMTP (works with Gmail, SendGrid, etc.)
- * 
+ * Uses Resend API (works on Render free tier)
+ *
  * Required ENV vars:
- *   EMAIL_HOST, EMAIL_PORT, EMAIL_USER, EMAIL_PASS, EMAIL_FROM
- * 
- * For Gmail: set EMAIL_HOST=smtp.gmail.com, EMAIL_PORT=587
- *            and use an App Password (not your regular Gmail password)
+ *   RESEND_API_KEY - from resend.com dashboard
  */
 
-const transporter = nodemailer.createTransport({
-  host: process.env.EMAIL_HOST || 'smtp.gmail.com',
-  port: 587,
-  secure: false,
-  family: 4,
-  requireTLS: true,
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-  tls: {
-    rejectUnauthorized: false
-  }
-});
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 /**
  * Generate a 6-digit OTP
@@ -94,8 +78,8 @@ const sendOTPEmail = async (email, otp, purpose = 'verify') => {
     </html>
   `;
 
-  await transporter.sendMail({
-    from: `"EcoLoop" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
+  await resend.emails.send({
+    from: 'EcoLoop <onboarding@resend.dev>',
     to: email,
     subject,
     html,
