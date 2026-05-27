@@ -58,7 +58,7 @@ const AdminCompleteProfile = () => {
 
     try {
       const response = await axios.post(
-        'http://localhost:5000/api/admin/profile/complete',
+        `${import.meta.env.VITE_API_URL}/api/admin/profile/complete`,
         {
           phone: formData.phone || null,
           city: formData.city,
