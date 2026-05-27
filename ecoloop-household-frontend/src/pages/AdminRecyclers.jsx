@@ -31,7 +31,7 @@ const AdminRecyclers = () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('adminToken');
-      const response = await axios.get('${import.meta.env.VITE_API_URL}/api/admin/recyclers/pending', {
+      const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/admin/recyclers/pending`, {
         params: {
           page: pagination.page,
           limit: pagination.limit,
@@ -54,7 +54,7 @@ const AdminRecyclers = () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('adminToken');
-      const response = await axios.get('http://localhost:5000/api/admin/recyclers/verified', {
+      const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/admin/recyclers/verified`, {
         params: {
           page: pagination.page,
           limit: pagination.limit,
@@ -77,7 +77,7 @@ const AdminRecyclers = () => {
     try {
       const token = localStorage.getItem('adminToken');
       await axios.put(
-        `http://localhost:5000/api/admin/recyclers/${recyclerId}/approve`,
+        `${import.meta.env.VITE_API_URL}/api/admin/recyclers/${recyclerId}/approve`,
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -108,7 +108,7 @@ const AdminRecyclers = () => {
     try {
       const token = localStorage.getItem('adminToken');
       await axios.put(
-        `http://localhost:5000/api/admin/recyclers/${selectedRecycler._id}/reject`,
+        `${import.meta.env.VITE_API_URL}/api/admin/recyclers/${selectedRecycler._id}/reject`,
         { reason: rejectionReason },
         { headers: { Authorization: `Bearer ${token}` } }
       );
