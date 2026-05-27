@@ -26,7 +26,7 @@ const AdminNGOVerification = () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('adminToken');
-      const response = await axios.get('${import.meta.env.VITE_API_URL}/api/admin/ngos/pending', {
+      const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/admin/ngos/pending`, {
         params: {
           page: pagination.page,
           limit: pagination.limit,
