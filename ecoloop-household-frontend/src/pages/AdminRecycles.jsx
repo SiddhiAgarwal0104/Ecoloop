@@ -56,7 +56,7 @@ const AdminRecycles = () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('adminToken');
-      const response = await axios.get('http://localhost:5000/api/admin/recycles', {
+      const response = await axios.get('${import.meta.env.VITE_API_URL}/api/admin/recycles', {
         params: {
           page: page,
           limit: 10,
