@@ -29,7 +29,7 @@ const AdminRecyclerRatings = () => {
   const fetchLocalities = async () => {
     try {
       const token = localStorage.getItem('adminToken');
-      const response = await axios.get('${import.meta.env.VITE_API_URL}/api/admin/localities', {
+      const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/admin/localities`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setLocalities(response.data.data || []);
@@ -42,7 +42,7 @@ const AdminRecyclerRatings = () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('adminToken');
-      const response = await axios.get('${import.meta.env.VITE_API_URL}/api/admin/ratings/recyclers-overview', {
+      const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/admin/ratings/recyclers-overview`, {
         params: {
           page: pagination.page,
           limit: pagination.limit,
