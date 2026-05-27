@@ -66,7 +66,7 @@ const AdminLeaderboard = () => {
       setLoading(true);
       const token = localStorage.getItem('adminToken');
       const response = await axios.get(
-        `http://localhost:5000/api/admin/leaderboard/locality/${encodeURIComponent(selectedLocality)}`,
+        `${import.meta.env.VITE_API_URL}/api/admin/leaderboard/locality/${encodeURIComponent(selectedLocality)}`,
         {
           params: { page: pagination.page, limit: pagination.limit },
           headers: { Authorization: `Bearer ${token}` }
@@ -85,7 +85,7 @@ const AdminLeaderboard = () => {
   const fetchLocalities = async () => {
     try {
       const token = localStorage.getItem('adminToken');
-      const response = await axios.get('http://localhost:5000/api/admin/localities', {
+      const response = await axios.get('${import.meta.env.VITE_API_URL}/api/admin/localities', {
         headers: { Authorization: `Bearer ${token}` }
       });
 
