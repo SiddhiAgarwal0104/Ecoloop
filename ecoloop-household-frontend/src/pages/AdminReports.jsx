@@ -17,7 +17,7 @@ const AdminReports = () => {
       const token = localStorage.getItem('adminToken');
 
       const response = await axios.get(
-        'http://localhost:5000/api/admin/reports/weekly',
+        '${import.meta.env.VITE_API_URL}/api/admin/reports/weekly',
         {
           params: { days },
           headers: { Authorization: `Bearer ${token}` },
