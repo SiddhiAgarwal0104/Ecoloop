@@ -49,7 +49,7 @@ const AdminNGOVerification = () => {
     try {
       const token = localStorage.getItem('adminToken');
       await axios.put(
-        `http://localhost:5000/api/admin/ngos/${ngoId}/approve`,
+        `${import.meta.env.VITE_API_URL}/api/admin/ngos/${ngoId}/approve`,
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -76,7 +76,7 @@ const AdminNGOVerification = () => {
     try {
       const token = localStorage.getItem('adminToken');
       await axios.put(
-        `http://localhost:5000/api/admin/ngos/${selectedNGO._id}/reject`,
+        `${import.meta.env.VITE_API_URL}/api/admin/ngos/${selectedNGO._id}/reject`,
         { reason: rejectionReason },
         { headers: { Authorization: `Bearer ${token}` } }
       );
