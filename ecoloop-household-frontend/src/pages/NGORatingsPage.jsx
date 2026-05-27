@@ -4,7 +4,8 @@ import AdminLayout from '../components/admin/AdminLayout';
 import { ngoRatingsAPI } from '../api/ngoRatingsAPI';
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const API_BASE_URL = `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api`;
+
 
 /**
  * Admin axios instance that reads the admin token, not the user token
