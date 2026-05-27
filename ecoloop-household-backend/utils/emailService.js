@@ -68,7 +68,7 @@ const sendOTPEmail = async (email, otp, purpose = 'verify') => {
   `;
 
   const payload = JSON.stringify({
-    sender: { name: 'EcoLoop', email: 'acb06a001@smtp-brevo.com' },
+    sender: { name: 'EcoLoop', email: 'bingo7815@gmail.com' },
     to: [{ email }],
     subject,
     htmlContent: html,
