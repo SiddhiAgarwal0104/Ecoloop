@@ -49,7 +49,7 @@ const AdminReports = () => {
       const token = localStorage.getItem('adminToken');
 
       const response = await axios.get(
-        'http://localhost:5000/api/admin/reports/donations',
+        '${import.meta.env.VITE_API_URL}/api/admin/reports/donations',
         {
           params: {
             startDate,
@@ -84,7 +84,7 @@ const AdminReports = () => {
       const token = localStorage.getItem('adminToken');
 
       const response = await axios.get(
-        'http://localhost:5000/api/admin/reports/ngo-performance',
+        '${import.meta.env.VITE_API_URL}/api/admin/reports/ngo-performance',
         {
           headers: { Authorization: `Bearer ${token}` },
           responseType: 'blob'
@@ -114,7 +114,7 @@ const AdminReports = () => {
       const token = localStorage.getItem('adminToken');
 
       const response = await axios.get(
-        'http://localhost:5000/api/admin/reports/recycler-performance',
+        '${import.meta.env.VITE_API_URL}/api/admin/reports/recycler-performance',
         {
           headers: { Authorization: `Bearer ${token}` },
           responseType: 'blob'
@@ -144,7 +144,7 @@ const AdminReports = () => {
       const token = localStorage.getItem('adminToken');
 
       const response = await axios.get(
-        'http://localhost:5000/api/admin/reports/combined-partners',
+        '${import.meta.env.VITE_API_URL}/api/admin/reports/combined-partners',
         {
           headers: { Authorization: `Bearer ${token}` },
           responseType: 'blob'
