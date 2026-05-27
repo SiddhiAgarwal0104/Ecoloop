@@ -1,37 +1,17 @@
-const nodemailer = require('nodemailer');
+const https = require('https');
 
 /**
- * Email Service - Handles all transactional emails
- * Uses Brevo SMTP (works on Render free tier - port 587)
+ * Email Service - Uses Brevo HTTP API (works on Render free tier)
+ * No SMTP - pure HTTP API call
  *
  * Required ENV vars:
- *   BREVO_SMTP_USER - from Brevo SMTP settings
- *   BREVO_SMTP_PASS - from Brevo SMTP settings
+ *   BREVO_API_KEY - from Brevo dashboard → Transactional → SMTP & API → API Settings
  */
 
-const transporter = nodemailer.createTransport({
-  host: 'smtp-relay.brevo.com',
-  port: 2525,
-  secure: false,
-  auth: {
-    user: process.env.BREVO_SMTP_USER,
-    pass: process.env.BREVO_SMTP_PASS,
-  },
-});
-
-/**
- * Generate a 6-digit OTP
- */
 const generateOTP = () => {
   return Math.floor(100000 + Math.random() * 900000).toString();
 };
 
-/**
- * Send OTP email for verification
- * @param {string} email - Recipient email
- * @param {string} otp - 6-digit OTP
- * @param {string} purpose - 'verify' | 'reset'
- */
 const sendOTPEmail = async (email, otp, purpose = 'verify') => {
   const isReset = purpose === 'reset';
 
@@ -87,11 +67,39 @@ const sendOTPEmail = async (email, otp, purpose = 'verify') => {
     </html>
   `;
 
-  await transporter.sendMail({
-    from: '"EcoLoop" <acb06a001@smtp-brevo.com>',
-    to: email,
+  const payload = JSON.stringify({
+    sender: { name: 'EcoLoop', email: 'acb06a001@smtp-brevo.com' },
+    to: [{ email }],
     subject,
-    html,
+    htmlContent: html,
+  });
+
+  return new Promise((resolve, reject) => {
+    const req = https.request(
+      {
+        hostname: 'api.brevo.com',
+        path: '/v3/smtp/email',
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'api-key': process.env.BREVO_API_KEY,
+        },
+      },
+      (res) => {
+        let data = '';
+        res.on('data', (chunk) => (data += chunk));
+        res.on('end', () => {
+          if (res.statusCode >= 200 && res.statusCode < 300) {
+            resolve(data);
+          } else {
+            reject(new Error(`Brevo API error: ${res.statusCode} - ${data}`));
+          }
+        });
+      }
+    );
+    req.on('error', reject);
+    req.write(payload);
+    req.end();
   });
 };
 
