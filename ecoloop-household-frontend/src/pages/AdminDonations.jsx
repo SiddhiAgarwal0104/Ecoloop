@@ -32,7 +32,7 @@ const AdminDonations = () => {
         search
       });
 
-      const response = await axios.get('http://localhost:5000/api/admin/donations', {
+      const response = await axios.get('${import.meta.env.VITE_API_URL}/api/admin/donations', {
         params: {
           page: pagination.page,
           limit: pagination.limit,
