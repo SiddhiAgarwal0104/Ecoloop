@@ -1,14 +1,23 @@
-const { Resend } = require('resend');
+const nodemailer = require('nodemailer');
 
 /**
  * Email Service - Handles all transactional emails
- * Uses Resend API (works on Render free tier)
+ * Uses Brevo SMTP (works on Render free tier - port 587)
  *
  * Required ENV vars:
- *   RESEND_API_KEY - from resend.com dashboard
+ *   BREVO_SMTP_USER - from Brevo SMTP settings
+ *   BREVO_SMTP_PASS - from Brevo SMTP settings
  */
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const transporter = nodemailer.createTransport({
+  host: 'smtp-relay.brevo.com',
+  port: 587,
+  secure: false,
+  auth: {
+    user: process.env.BREVO_SMTP_USER,
+    pass: process.env.BREVO_SMTP_PASS,
+  },
+});
 
 /**
  * Generate a 6-digit OTP
@@ -78,8 +87,8 @@ const sendOTPEmail = async (email, otp, purpose = 'verify') => {
     </html>
   `;
 
-  await resend.emails.send({
-    from: 'EcoLoop <onboarding@resend.dev>',
+  await transporter.sendMail({
+    from: '"EcoLoop" <acb06a001@smtp-brevo.com>',
     to: email,
     subject,
     html,
