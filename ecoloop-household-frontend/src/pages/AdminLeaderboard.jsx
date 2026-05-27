@@ -42,7 +42,7 @@ const AdminLeaderboard = () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('adminToken');
-      const response = await axios.get('http://localhost:5000/api/admin/leaderboard/global', {
+      const response = await axios.get('${import.meta.env.VITE_API_URL}/api/admin/leaderboard/global', {
         params: {
           page: pagination.page,
           limit: pagination.limit
