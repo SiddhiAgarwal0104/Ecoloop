@@ -31,7 +31,7 @@ const AdminRecyclers = () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('adminToken');
-      const response = await axios.get('http://localhost:5000/api/admin/recyclers/pending', {
+      const response = await axios.get('${import.meta.env.VITE_API_URL}/api/admin/recyclers/pending', {
         params: {
           page: pagination.page,
           limit: pagination.limit,
