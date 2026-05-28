@@ -2,6 +2,7 @@ const Donation = require('../models/Donation');
 const Notification = require('../models/Notification');
 const AppError = require('../utils/appError');
 const User = require('../models/User');
+const { updateUserStats} = require('./rewardsController');
 
 // ================= CALCULATE DISTANCE (Haversine Formula) =================
 const calculateDistance = (lat1, lon1, lat2, lon2) => {
@@ -241,6 +242,11 @@ exports.updateDonationStatus = async (req, res, next) => {
 
     donation.status = status;
     await donation.save();
+    if (status === 'COMPLETED') {
+      await updateUserStats(donation.userId.toString(), 'DONATION_COMPLETED', {
+        quantity: donation.quantity
+      });
+    }
 
     // Create notification
     let notificationMessage = '';
