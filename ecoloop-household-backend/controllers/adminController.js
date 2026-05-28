@@ -180,7 +180,7 @@ exports.getPendingNGOs = async (req, res, next) => {
     const ngos = await User.find({
       role: 'NGO',
       isVerified: false,
-      city: adminCity,
+      city: { $regex: `^${adminCity}$`, $options: 'i' },
       $or: [
         { name: searchRegex },
         { email: searchRegex },
@@ -230,7 +230,7 @@ exports.getVerifiedNGOs = async (req, res, next) => {
     const filter = {
       role: 'NGO',
       isVerified: true,
-      city: adminCity
+      city: { $regex: `^${adminCity}$`, $options: 'i' },
     };
 
     if (locality) {
@@ -1033,11 +1033,12 @@ exports.downloadCombinedPartnerReport = async (req, res, next) => {
 /**
  * Get Pending Recyclers
  */
-exports.getPendingRecyclers = async (req, res, next) => {
+
+
+ exports.getPendingRecyclers = async (req, res, next) => {
   try {
     const { page = 1, limit = 10, search = '' } = req.query;
     
-    // Get admin's city
     const adminCity = await getAdminCity(req.user._id);
     if (!adminCity) {
       return next(new AppError('Admin profile incomplete. Please complete your profile first.', 400));
@@ -1045,11 +1046,10 @@ exports.getPendingRecyclers = async (req, res, next) => {
 
     const searchRegex = new RegExp(search, 'i');
 
-    // ✅ FIXED: Search by city, not locality
     const recyclers = await Recycler.find({
       verificationStatus: 'PENDING',
-      profileCompleted: true,  // ✅ Only show completed profiles
-      city: adminCity,  // ✅ Match by city
+      profileCompleted: true,
+      city: { $regex: `^${adminCity}$`, $options: 'i' },
       $or: [
         { name: searchRegex },
         { email: searchRegex },
@@ -1064,7 +1064,7 @@ exports.getPendingRecyclers = async (req, res, next) => {
     const total = await Recycler.countDocuments({
       verificationStatus: 'PENDING',
       profileCompleted: true,
-      city: adminCity
+      city: { $regex: `^${adminCity}$`, $options: 'i' }
     });
 
     res.status(200).json({
@@ -1096,10 +1096,10 @@ exports.getVerifiedRecyclers = async (req, res, next) => {
 
     const searchRegex = new RegExp(search, 'i');
 
-    // ✅ FIXED: Search by city, not locality
+    
     const recyclers = await Recycler.find({
       verificationStatus: 'APPROVED',
-      city: adminCity,  // ✅ Match by city
+      city: { $regex: `^${adminCity}$`, $options: 'i' },
       $or: [
         { name: searchRegex },
         { email: searchRegex },
@@ -1111,10 +1111,10 @@ exports.getVerifiedRecyclers = async (req, res, next) => {
       .limit(parseInt(limit))
       .sort({ verificationApprovedAt: -1 });
 
-    const total = await Recycler.countDocuments({
-      verificationStatus: 'APPROVED',
-      city: adminCity
-    });
+   const total = await Recycler.countDocuments({
+  verificationStatus: 'APPROVED',
+  city: { $regex: `^${adminCity}$`, $options: 'i' }
+});
 
     // Count completed requests for each recycler
     const recyclerStats = await Promise.all(
