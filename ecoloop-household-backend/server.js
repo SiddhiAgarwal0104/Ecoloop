@@ -161,46 +161,7 @@ app.get('/health', (req, res) => {
     timestamp: new Date().toISOString()
   });
 });
-app.get('/api/seed-badges-now', async (req, res) => {
-  try {
-    const Badge = require('./models/Badge');
-    const UserBadge = require('./models/UserBadge');
 
-    const badges = [
-      // DONATION badges — based on donations.completed
-      { name: 'First Steps', description: 'Completed your first donation', icon: '🌱', category: 'DONATION', tier: 'BRONZE', points: 10, requirement: { type: 'COUNT', value: 1, action: 'DONATION' } },
-      { name: 'Generous Giver', description: 'Completed 3 donations', icon: '🌿', category: 'DONATION', tier: 'SILVER', points: 50, requirement: { type: 'COUNT', value: 3, action: 'DONATION' } },
-      { name: 'Donation Hero', description: 'Completed 10 donations', icon: '⭐', category: 'DONATION', tier: 'GOLD', points: 150, requirement: { type: 'COUNT', value: 10, action: 'DONATION' } },
-
-      // RECYCLE badges — based on recycles.completed
-      { name: 'Recycle Starter', description: 'Completed your first recycle', icon: '♻️', category: 'RECYCLE', tier: 'BRONZE', points: 10, requirement: { type: 'COUNT', value: 1, action: 'RECYCLE' } },
-      { name: 'Eco Warrior', description: 'Completed 3 recycles', icon: '💚', category: 'RECYCLE', tier: 'SILVER', points: 75, requirement: { type: 'COUNT', value: 3, action: 'RECYCLE' } },
-      { name: 'Green Guardian', description: 'Completed 10 recycles', icon: '🌳', category: 'RECYCLE', tier: 'GOLD', points: 200, requirement: { type: 'COUNT', value: 10, action: 'RECYCLE' } },
-
-      // MILESTONE badges — based on total completed (donations + recycles)
-      { name: 'Getting Started', description: 'Completed 5 total actions', icon: '🥉', category: 'MILESTONE', tier: 'BRONZE', points: 25, requirement: { type: 'COUNT', value: 5, action: 'TOTAL_IMPACT' } },
-      { name: 'Making Impact', description: 'Completed 15 total actions', icon: '🥈', category: 'MILESTONE', tier: 'SILVER', points: 100, requirement: { type: 'COUNT', value: 15, action: 'TOTAL_IMPACT' } },
-      { name: 'Sustainability Champion', description: 'Completed 30 total actions', icon: '🏆', category: 'MILESTONE', tier: 'GOLD', points: 300, requirement: { type: 'COUNT', value: 30, action: 'TOTAL_IMPACT' } },
-      { name: 'Community Leader', description: 'Completed 50 total actions', icon: '👑', category: 'MILESTONE', tier: 'GOLD', points: 500, requirement: { type: 'COUNT', value: 50, action: 'TOTAL_IMPACT' } },
-
-      // STREAK badges — based on streak.current
-      { name: 'Streak Starter', description: '3 consecutive days of activity', icon: '🔥', category: 'STREAK', tier: 'BRONZE', points: 30, requirement: { type: 'STREAK', value: 3, action: 'CONSECUTIVE_DAYS' } },
-      { name: 'Streak Master', description: '7 consecutive days of activity', icon: '💎', category: 'STREAK', tier: 'SILVER', points: 150, requirement: { type: 'STREAK', value: 7, action: 'CONSECUTIVE_DAYS' } },
-      { name: 'Consistency Star', description: '30 consecutive days of activity', icon: '🌟', category: 'STREAK', tier: 'GOLD', points: 300, requirement: { type: 'STREAK', value: 30, action: 'CONSECUTIVE_DAYS' } },
-
-      // SPECIAL
-      { name: 'Early Adopter', description: 'One of our earliest users', icon: '🎖️', category: 'SPECIAL', tier: 'BRONZE', points: 50, requirement: { type: 'SPECIAL', value: 1, action: 'DONATION' } },
-    ];
-
-    // Clear old badges AND user badge records
-    await Badge.deleteMany({});
-    await UserBadge.deleteMany({});
-    const result = await Badge.insertMany(badges);
-    res.json({ success: true, message: `${result.length} badges seeded, all user badges cleared!` });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
 // ====== 404 Handler ======
 /**
  * Handle undefined routes
